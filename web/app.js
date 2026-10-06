@@ -37,7 +37,10 @@ function openTopicDialog(topic = null) {
 function renderEmojiPicker() {
   $('#emoji-picker').replaceChildren();
   TaskStore.EMOJIS.forEach(emoji => {
-    const button = element('button', 'emoji-choice', emoji);
+    const button = element('button', 'emoji-choice');
+    const glyph = element('span', 'emoji-glyph', emoji);
+    glyph.setAttribute('aria-hidden', 'true');
+    button.append(glyph);
     button.type = 'button';
     button.setAttribute('aria-label', emoji + ' 이모티콘');
     button.setAttribute('aria-pressed', String(emoji === selectedEmoji));
@@ -85,7 +88,10 @@ function render() {
     const details = element('details', 'topic');
     details.open = query || filter !== 'all' ? true : topic.open;
     const summary = element('summary');
-    const emojiButton = element('button', 'topic-icon', topic.emoji || '📋');
+    const emojiButton = element('button', 'topic-icon');
+    const glyph = element('span', 'emoji-glyph', topic.emoji || '📋');
+    glyph.setAttribute('aria-hidden', 'true');
+    emojiButton.append(glyph);
     emojiButton.type = 'button';
     emojiButton.setAttribute('aria-label', topic.name + ' 이모티콘 변경');
     emojiButton.onclick = event => { event.preventDefault(); openTopicDialog(topic); $('#emoji-picker').querySelector('[aria-pressed=true]').focus(); };
