@@ -23,15 +23,22 @@ python3 -m http.server 8080 --bind 127.0.0.1 --directory web
 
 ## GitHub Pages 배포
 
-`.github/workflows/pages.yml`은 전체 pytest가 성공한 뒤 `web/`만 배포합니다.
+배포 주소: https://ihag.github.io/to-do-list/
+
+소스는 `feat/taskflow-pages`, 웹 배포 파일은 `gh-pages` 브랜치에 있습니다.
+전체 pytest와 실제 Chrome 검증을 통과한 `web/` 파일만 배포했습니다.
 `.env`, SQLite DB, 백엔드 소스는 웹 배포 파일에 포함되지 않습니다.
 
-1. GitHub 저장소에 `feat/taskflow-web` 브랜치를 push합니다.
-2. 저장소 Settings → Pages → Source를 **GitHub Actions**로 설정합니다.
-3. 배포 환경의 허용 브랜치에 `feat/taskflow-web`을 포함합니다.
-4. Actions에서 **Test and deploy TaskFlow**를 실행합니다.
+저장소 Settings → Pages에서 **Deploy from a branch**, `gh-pages`, `/ (root)`를
+사용합니다. 현재 Git 인증에 workflow 권한이 없어 브랜치 배포 방식을 사용합니다.
+main에는 직접 커밋하지 않았습니다.
 
-main에는 직접 커밋하지 않습니다. 리뷰 후 병합하면 main에서도 테스트 및 배포가 실행됩니다.
+후속 수정은 기능 브랜치에서 진행하고 전체 pytest를 실행한 후, 변경된 `web/`
+파일을 `gh-pages` 루트에 반영합니다. gh-pages에 push하면 GitHub Pages가 다시 배포합니다.
+
+`deployment/github-pages.yml`은 테스트 후 자동 배포를 위한 선택적 워크플로 템플릿입니다.
+workflow 권한이 있는 인증을 사용하게 되면 이를 `.github/workflows/pages.yml`에 복사하고,
+트리거의 기능 브랜치 이름을 조정한 뒤 Pages Source를 GitHub Actions로 변경할 수 있습니다.
 
 프런트엔드 테스트도 `pytest`에 포함되어 있어 Node.js 22 이상이 필요합니다.
 `node tests/web_store_test.cjs`로 저장·완료·검색·검증 실패 케이스를 따로 실행할 수 있습니다.
