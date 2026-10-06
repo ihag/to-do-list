@@ -1,6 +1,7 @@
 (function (root) {
   'use strict';
   const KEY = 'taskflow.workspace.v1';
+  const EMOJIS = ['📋', '💼', '🌿', '🏠', '🎯', '📚', '💡', '💻', '🎨', '💪', '✈️', '🛒', '🎵', '❤️', '⭐', '☕'];
   const uid = () => root.crypto.randomUUID();
   function initialState() {
     return { version: 1, topics: [
@@ -21,6 +22,7 @@
     const unique = id => typeof id === 'string' && id.length > 0 && !ids.has(id) && !!ids.add(id);
     return state && state.version === 1 && Array.isArray(state.topics) && state.topics.every(topic =>
       unique(topic.id) && typeof topic.name === 'string' && topic.name.trim().length > 0 && topic.name.length <= 60 &&
+      (topic.emoji === undefined || EMOJIS.includes(topic.emoji)) &&
       typeof topic.open === 'boolean' && Array.isArray(topic.todos) && topic.todos.every(todo =>
         unique(todo.id) && typeof todo.title === 'string' && todo.title.trim().length > 0 && todo.title.length <= 200 &&
         typeof todo.done === 'boolean' && typeof todo.due === 'string' && (!todo.due || /^\d{4}-\d{2}-\d{2}$/.test(todo.due))));
@@ -36,10 +38,11 @@
     if (!validate(state)) throw new Error('저장할 데이터가 올바르지 않습니다.');
     storage.setItem(KEY, JSON.stringify(state));
   }
-  function addTopic(state, name) {
+  function addTopic(state, name, emoji = '📋') {
     const trimmed = name.trim();
     if (!trimmed || trimmed.length > 60) throw new Error('주제 이름은 1–60자로 입력해주세요.');
-    const topic = { id: uid(), name: trimmed, open: true, todos: [] };
+    if (!EMOJIS.includes(emoji)) throw new Error('이모티콘을 선택해주세요.');
+    const topic = { id: uid(), name: trimmed, emoji, open: true, todos: [] };
     state.topics.push(topic);
     return topic;
   }
@@ -55,5 +58,15 @@
     return topic.todos.filter(todo => (filter === 'all' || (filter === 'done' ? todo.done : !todo.done)) &&
       (!search || todo.title.toLocaleLowerCase().includes(search) || topic.name.toLocaleLowerCase().includes(search)));
   }
-  root.TaskStore = { KEY, initialState, validate, load, save, addTopic, addTodo, visibleTodos };
+  function deleteTopic(state, topicId) {
+    const index = state.topics.findIndex(topic => topic.id === topicId);
+    if (index === -1) throw new Error('주제를 찾을 수 없습니다.');
+    state.topics.splice(index, 1);
+  }
+  function deleteTodo(topic, todoId) {
+    const index = topic.todos.findIndex(todo => todo.id === todoId);
+    if (index === -1) throw new Error('할 일을 찾을 수 없습니다.');
+    topic.todos.splice(index, 1);
+  }
+  root.TaskStore = { KEY, EMOJIS, initialState, validate, load, save, addTopic, addTodo, visibleTodos, deleteTopic, deleteTodo };
 })(globalThis);
