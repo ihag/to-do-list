@@ -1,0 +1,58 @@
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+(async () => {
+  const tabs = await (await fetch('http://127.0.0.1:9227/json')).json();
+  const socket = new WebSocket(tabs[0].webSocketDebuggerUrl);
+  await new Promise(resolve => socket.addEventListener('open', resolve, {once:true}));
+  let id = 0; const pending = new Map(); const errors = [];
+  socket.addEventListener('message', event => {
+    const message = JSON.parse(event.data);
+    if (message.method === 'Runtime.exceptionThrown') errors.push(message.params);
+    if (message.id) { const promise = pending.get(message.id); pending.delete(message.id); message.error ? promise.reject(message.error) : promise.resolve(message.result); }
+  });
+  const call = (method, params = {}) => new Promise((resolve, reject) => { const current = ++id; pending.set(current, {resolve,reject}); socket.send(JSON.stringify({id:current,method,params})); });
+  const evaluate = async expression => {
+    const response = await call('Runtime.evaluate', {expression, returnByValue:true, awaitPromise:true});
+    if (response.exceptionDetails) throw new Error(JSON.stringify(response.exceptionDetails));
+    return response.result.value;
+  };
+  const ready = () => evaluate(`new Promise(resolve => { const check=()=>document.querySelector('.topic') ? resolve(true) : setTimeout(check,30);check();})`);
+  await call('Runtime.enable'); await call('Page.enable');
+  await call('Emulation.setDeviceMetricsOverride', {width:1440,height:1100,deviceScaleFactor:1,mobile:false});
+  await call('Page.navigate', {url:'http://127.0.0.1:8080/'}); await ready();
+  await evaluate('localStorage.clear(); location.reload();');
+  await new Promise(resolve => setTimeout(resolve, 250)); await ready();
+  assert.equal(await evaluate(`document.querySelectorAll('.topic').length`), 3);
+  await evaluate(`document.querySelector('#add-topic').click(); document.querySelector('#topic-name').value='테스트 주제'; document.querySelector('#topic-form').requestSubmit()`);
+  assert.equal(await evaluate(`document.querySelectorAll('.topic').length`), 4);
+  await evaluate(`const form=document.querySelector('.topic:last-child .task-form'); form.querySelector('input[type=text]').value='<img src=x onerror=alert(1)>'; form.querySelector('input[type=date]').value='2026-10-10'; form.requestSubmit()`);
+  assert.equal(await evaluate(`document.querySelector('.topic:last-child .todo-label').textContent`), '<img src=x onerror=alert(1)>');
+  assert.equal(await evaluate(`document.querySelectorAll('.todo-label img').length`), 0);
+  await evaluate(`document.querySelector('.topic:last-child input[type=checkbox]').click()`);
+  assert.equal(await evaluate(`getComputedStyle(document.querySelector('.topic:last-child .todo-label')).textDecorationLine`), 'line-through');
+  await evaluate(`document.querySelector('.topic:last-child .todo-edit').click(); const edit=document.querySelector('.topic:last-child .todo-row input[type=text]'); edit.value='수정한 할 일'; edit.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))`);
+  assert.equal(await evaluate(`document.querySelector('.topic:last-child .todo-label').textContent`), '수정한 할 일');
+  await evaluate(`document.querySelector('[data-filter=done]').click()`);
+  assert.equal(await evaluate(`document.querySelectorAll('.todo-row:not(.done)').length`), 0);
+  await evaluate(`document.querySelector('[data-filter=all]').click(); const search=document.querySelector('#search');search.value='수정한';search.dispatchEvent(new Event('input'))`);
+  assert.equal(await evaluate(`document.querySelectorAll('.todo-row').length`), 1);
+  await evaluate(`document.querySelector('#search').value='';document.querySelector('#search').dispatchEvent(new Event('input'));document.querySelector('.topic:last-child summary').click()`);
+  await new Promise(resolve => setTimeout(resolve, 100));
+  await call('Page.reload'); await new Promise(resolve => setTimeout(resolve, 200)); await ready();
+  assert.equal(await evaluate(`document.querySelector('.topic:last-child').open`), false);
+  assert.equal(await evaluate(`document.querySelector('.topic:last-child .todo-label').textContent`), '수정한 할 일');
+  await call('Emulation.setDeviceMetricsOverride', {width:390,height:844,deviceScaleFactor:1,mobile:true});
+  assert.equal(await evaluate(`document.documentElement.scrollWidth <= window.innerWidth`), true);
+  fs.mkdirSync('artifacts', {recursive:true});
+  let screenshot = await call('Page.captureScreenshot', {format:'png', captureBeyondViewport:true});
+  fs.writeFileSync('artifacts/taskflow-mobile.png', Buffer.from(screenshot.data,'base64'));
+  await evaluate(`localStorage.clear();location.reload()`); await new Promise(resolve => setTimeout(resolve, 200)); await ready();
+  await call('Emulation.setDeviceMetricsOverride', {width:1440,height:1100,deviceScaleFactor:1,mobile:false});
+  await evaluate('window.scrollTo(0,0)');
+  await new Promise(resolve => setTimeout(resolve, 100));
+  screenshot = await call('Page.captureScreenshot', {format:'png',captureBeyondViewport:true});
+  fs.writeFileSync('artifacts/taskflow-desktop.png',Buffer.from(screenshot.data,'base64'));
+  assert.equal(errors.length, 0, JSON.stringify(errors));
+  socket.close();
+  console.log('Chrome QA passed: topic/task creation, XSS text escaping, completion styling, editing, filters, search, reload persistence, collapse persistence, mobile layout, zero runtime errors.');
+})().catch(error => { console.error(error);process.exit(1); });
