@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.DS_Store
+todos.sqlite3
+todos.sqlite3-journal
+todos.sqlite3-wal
+todos.sqlite3-shm
+*.sqlite3.backup-*
+.env
+.env.*
+!.env.example
+node_modules/
+.codex/
+artifacts/

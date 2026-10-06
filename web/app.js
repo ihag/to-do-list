@@ -1,0 +1,157 @@
+'use strict';
+const $ = selector => document.querySelector(selector);
+let state, storageReady = true, filter = 'all', query = '', selectedTopic = null, editingTopic = null, toastTimer;
+function notify(message) {
+  $('#toast').textContent = message;
+  $('#toast').hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $('#toast').hidden = true; }, 3500);
+}
+try { state = TaskStore.load(localStorage); }
+catch (error) {
+  state = { version: 1, topics: [] };
+  storageReady = false;
+  $('#save-status').textContent = '저장 기능을 확인해주세요';
+  notify('저장 데이터를 읽을 수 없습니다. 기존 데이터는 유지되며 변경 사항은 저장되지 않습니다.');
+}
+function persist() {
+  if (!storageReady) { notify('저장할 수 없는 상태입니다. 브라우저 저장 설정을 확인해주세요.'); return; }
+  try { TaskStore.save(localStorage, state); $('#save-status').textContent = '이 브라우저에 저장됨'; }
+  catch (error) { $('#save-status').textContent = '저장 실패 · 변경 사항 미저장'; notify('저장하지 못했습니다. 브라우저 저장 공간과 설정을 확인해주세요.'); }
+}
+function element(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+function openTopicDialog(topic = null) {
+  editingTopic = topic;
+  $('#dialog-title').textContent = topic ? '주제 이름 수정' : '새로운 주제';
+  $('#topic-name').value = topic ? topic.name : '';
+  $('#topic-dialog').showModal();
+  $('#topic-name').focus();
+}
+function render() {
+  const todos = state.topics.flatMap(topic => topic.todos);
+  const done = todos.filter(todo => todo.done).length;
+  const percent = todos.length ? Math.round(done / todos.length * 100) : 0;
+  $('#total').replaceChildren(document.createTextNode(todos.length), element('small', '', '개'));
+  $('#pending').replaceChildren(document.createTextNode(todos.length - done), element('small', '', '개'));
+  $('#completed').replaceChildren(document.createTextNode(done), element('small', '', '개'));
+  $('#percent').textContent = percent + '%';
+  $('#overall-progress').style.width = percent + '%';
+  $('#progress-caption').textContent = percent === 100 ? '오늘의 할 일, 모두 해냈어요!' : done ? `${done}개의 작은 완료가 쌓였어요.` : '첫 번째 할 일을 시작해보세요.';
+  $('#nav-count').textContent = todos.length - done;
+  $('#filter-count').textContent = todos.length;
+  $('#all-topics').classList.toggle('active', selectedTopic === null);
+  $('#list-title').textContent = selectedTopic ? state.topics.find(t => t.id === selectedTopic)?.name || '나의 주제' : '나의 주제';
+  $('#topic-nav').replaceChildren();
+  state.topics.forEach(topic => {
+    const button = element('button', 'topic-nav-item' + (selectedTopic === topic.id ? ' selected' : ''));
+    button.append(element('span', 'color-dot'), element('span', '', topic.name));
+    button.onclick = () => { selectedTopic = topic.id; render(); };
+    $('#topic-nav').append(button);
+  });
+  const container = $('#topics');
+  container.replaceChildren();
+  state.topics.filter(topic => !selectedTopic || topic.id === selectedTopic).forEach(topic => {
+    const visible = TaskStore.visibleTodos(topic, filter, query);
+    if ((query || filter !== 'all') && !visible.length) return;
+    const details = element('details', 'topic');
+    details.open = query || filter !== 'all' ? true : topic.open;
+    const summary = element('summary');
+    summary.append(element('span', 'chevron', '›'), element('span', 'topic-icon', '▤'), element('span', 'topic-title', topic.name), element('span', 'topic-count', topic.todos.length));
+    const actions = element('span', 'topic-actions');
+    const edit = element('button', 'edit-topic', '수정');
+    edit.type = 'button';
+    edit.setAttribute('aria-label', topic.name + ' 주제 이름 수정');
+    edit.onclick = event => { event.preventDefault(); openTopicDialog(topic); };
+    actions.append(element('span', 'topic-ratio', `${topic.todos.filter(t => t.done).length} / ${topic.todos.length} 완료`), edit);
+    summary.append(actions);
+    const list = element('div', 'todo-list');
+    visible.forEach(todo => {
+      const row = element('div', 'todo-row' + (todo.done ? ' done' : ''));
+      const checkbox = element('input'); checkbox.type = 'checkbox'; checkbox.checked = todo.done; checkbox.id = 'todo-' + todo.id;
+      checkbox.onchange = () => { todo.done = checkbox.checked; persist(); render(); };
+      const label = element('label', 'todo-label', todo.title); label.htmlFor = checkbox.id;
+      row.append(checkbox, label);
+      if (todo.due) {
+        const today = localDate();
+        const badge = element('span', 'due-badge' + (!todo.done && todo.due < today ? ' overdue' : ''), todo.due === today ? '오늘' : todo.due.slice(5).replace('-', '.'));
+        badge.title = todo.due; row.append(badge);
+      }
+      const editTodo = element('button', 'todo-edit', '수정');
+      editTodo.setAttribute('aria-label', todo.title + ' 수정');
+      editTodo.onclick = () => {
+        const input = element('input'); input.type = 'text'; input.value = todo.title; input.maxLength = 200; input.className = 'todo-label'; input.setAttribute('aria-label', '할 일 이름 수정');
+        label.replaceWith(input); editTodo.textContent = '저장'; input.focus();
+        const finish = () => {
+          const title = input.value.trim();
+          if (!title) { notify('할 일 이름을 입력해주세요.'); input.focus(); return; }
+          todo.title = title; persist(); render();
+        };
+        editTodo.onclick = finish;
+        input.onkeydown = event => { if (event.isComposing) return; if (event.key === 'Enter') finish(); if (event.key === 'Escape') render(); };
+      };
+      row.append(editTodo); list.append(row);
+    });
+    if (!visible.length) list.append(element('div', 'topic-empty', '아직 할 일이 없어요. 첫 번째 할 일을 적어보세요.'));
+    const form = element('form', 'task-form');
+    const input = element('input'); input.type = 'text'; input.placeholder = '새로운 할 일 추가하기'; input.required = true; input.maxLength = 200; input.setAttribute('aria-label', topic.name + '에 할 일 추가');
+    const due = element('input'); due.type = 'date'; due.setAttribute('aria-label', '할 일 기한');
+    const button = element('button', '', '추가'); button.type = 'submit';
+    form.append(element('span', '', '＋'), input, due, button);
+    form.onsubmit = event => {
+      event.preventDefault();
+      try {
+        TaskStore.addTodo(topic, input.value, due.value); filter = 'all'; query = ''; $('#search').value = ''; updateFilters(); persist(); render();
+        document.getElementById(details.id)?.querySelector('input[type=text]')?.focus();
+        notify('할 일을 추가했어요.');
+      } catch (error) { notify(error.message); }
+    };
+    details.id = 'topic-' + topic.id;
+    list.append(form); details.append(summary, list); container.append(details);
+    details.addEventListener('toggle', () => {
+      if (!details.isConnected || query || filter !== 'all' || topic.open === details.open) return;
+      topic.open = details.open; persist();
+    });
+  });
+  if (!container.childElementCount) container.append(element('div', 'empty', query || filter !== 'all' ? '조건에 맞는 할 일이 없어요.' : '새로운 주제를 만들고 나의 할 일을 시작해보세요.'));
+}
+function localDate() {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+function updateFilters() {
+  document.querySelectorAll('[data-filter]').forEach(button => {
+    button.classList.toggle('selected', button.dataset.filter === filter);
+    button.setAttribute('aria-pressed', String(button.dataset.filter === filter));
+  });
+}
+$('#today').textContent = new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }).format(new Date());
+['#add-topic', '#sidebar-add', '#bottom-add'].forEach(selector => { $(selector).onclick = () => openTopicDialog(); });
+['#close-dialog', '#cancel-dialog'].forEach(selector => { $(selector).onclick = () => $('#topic-dialog').close(); });
+$('#topic-form').onsubmit = event => {
+  event.preventDefault();
+  const name = $('#topic-name').value.trim();
+  try {
+    if (!name || name.length > 60) throw new Error('주제 이름을 입력해주세요.');
+    if (editingTopic) editingTopic.name = name;
+    else { const topic = TaskStore.addTopic(state, name); selectedTopic = null; topic.open = true; }
+    query = ''; filter = 'all'; $('#search').value = ''; updateFilters(); persist(); render(); $('#topic-dialog').close(); notify('주제를 저장했어요.');
+  } catch (error) { notify(error.message); }
+};
+document.querySelectorAll('[data-filter]').forEach(button => { button.onclick = () => { filter = button.dataset.filter; updateFilters(); render(); }; });
+$('#search').oninput = event => { query = event.target.value; render(); };
+$('#all-topics').onclick = () => { selectedTopic = null; render(); };
+document.addEventListener('keydown', event => {
+  if (event.key === '/' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName) && !$('#topic-dialog').open) { event.preventDefault(); $('#search').focus(); }
+});
+window.addEventListener('storage', event => {
+  if (event.key !== TaskStore.KEY) return;
+  try { state = TaskStore.load(localStorage); selectedTopic = null; render(); notify('다른 탭의 변경 사항을 반영했어요.'); }
+  catch (error) { storageReady = false; $('#save-status').textContent = '저장 데이터를 확인해주세요'; notify('다른 탭의 저장 데이터를 읽을 수 없습니다.'); }
+});
+render();
+if (storageReady) persist();
