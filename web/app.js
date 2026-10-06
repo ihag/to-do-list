@@ -1,6 +1,6 @@
 'use strict';
 const $ = selector => document.querySelector(selector);
-let state, storageReady = true, filter = 'all', query = '', selectedTopic = null, editingTopic = null, toastTimer;
+let state, storageReady = true, filter = 'all', query = '', selectedTopic = null, editingTopic = null, selectedEmoji = '📋', toastTimer;
 function notify(message) {
   $('#toast').textContent = message;
   $('#toast').hidden = false;
@@ -29,8 +29,32 @@ function openTopicDialog(topic = null) {
   editingTopic = topic;
   $('#dialog-title').textContent = topic ? '주제 이름 수정' : '새로운 주제';
   $('#topic-name').value = topic ? topic.name : '';
+  selectedEmoji = topic?.emoji || '📋';
+  renderEmojiPicker();
   $('#topic-dialog').showModal();
   $('#topic-name').focus();
+}
+function renderEmojiPicker() {
+  $('#emoji-picker').replaceChildren();
+  TaskStore.EMOJIS.forEach(emoji => {
+    const button = element('button', 'emoji-choice', emoji);
+    button.type = 'button';
+    button.setAttribute('aria-label', emoji + ' 이모티콘');
+    button.setAttribute('aria-pressed', String(emoji === selectedEmoji));
+    button.onclick = () => { selectedEmoji = emoji; renderEmojiPicker(); $('#emoji-picker').querySelectorAll('button')[TaskStore.EMOJIS.indexOf(emoji)].focus(); };
+    $('#emoji-picker').append(button);
+  });
+}
+function confirmDelete(description, action) {
+  const dialog = $('#delete-dialog');
+  $('#delete-description').textContent = description;
+  dialog.returnValue = '';
+  dialog.onclose = () => {
+    if (dialog.returnValue !== 'confirm') return;
+    try { action(); persist(); render(); notify('삭제했어요.'); }
+    catch (error) { notify(error.message); }
+  };
+  dialog.showModal();
 }
 function render() {
   const todos = state.topics.flatMap(topic => topic.todos);
@@ -49,7 +73,7 @@ function render() {
   $('#topic-nav').replaceChildren();
   state.topics.forEach(topic => {
     const button = element('button', 'topic-nav-item' + (selectedTopic === topic.id ? ' selected' : ''));
-    button.append(element('span', 'color-dot'), element('span', '', topic.name));
+    button.append(element('span', 'nav-emoji', topic.emoji || '📋'), element('span', '', topic.name));
     button.onclick = () => { selectedTopic = topic.id; render(); };
     $('#topic-nav').append(button);
   });
@@ -61,13 +85,27 @@ function render() {
     const details = element('details', 'topic');
     details.open = query || filter !== 'all' ? true : topic.open;
     const summary = element('summary');
-    summary.append(element('span', 'chevron', '›'), element('span', 'topic-icon', '▤'), element('span', 'topic-title', topic.name), element('span', 'topic-count', topic.todos.length));
+    const emojiButton = element('button', 'topic-icon', topic.emoji || '📋');
+    emojiButton.type = 'button';
+    emojiButton.setAttribute('aria-label', topic.name + ' 이모티콘 변경');
+    emojiButton.onclick = event => { event.preventDefault(); openTopicDialog(topic); $('#emoji-picker').querySelector('[aria-pressed=true]').focus(); };
+    summary.append(element('span', 'chevron', '›'), emojiButton, element('span', 'topic-title', topic.name), element('span', 'topic-count', topic.todos.length));
     const actions = element('span', 'topic-actions');
     const edit = element('button', 'edit-topic', '수정');
     edit.type = 'button';
     edit.setAttribute('aria-label', topic.name + ' 주제 이름 수정');
     edit.onclick = event => { event.preventDefault(); openTopicDialog(topic); };
-    actions.append(element('span', 'topic-ratio', `${topic.todos.filter(t => t.done).length} / ${topic.todos.length} 완료`), edit);
+    const deleteTopic = element('button', 'delete-topic delete-action', '삭제');
+    deleteTopic.type = 'button';
+    deleteTopic.setAttribute('aria-label', topic.name + ' 주제 삭제');
+    deleteTopic.onclick = event => {
+      event.preventDefault();
+      confirmDelete(`“${topic.name}” 주제와 그 안의 할 일 ${topic.todos.length}개를 삭제합니다. 삭제 후 되돌릴 수 없습니다.`, () => {
+        TaskStore.deleteTopic(state, topic.id);
+        if (selectedTopic === topic.id) selectedTopic = null;
+      });
+    };
+    actions.append(edit, deleteTopic);
     summary.append(actions);
     const list = element('div', 'todo-list');
     visible.forEach(todo => {
@@ -94,7 +132,14 @@ function render() {
         editTodo.onclick = finish;
         input.onkeydown = event => { if (event.isComposing) return; if (event.key === 'Enter') finish(); if (event.key === 'Escape') render(); };
       };
-      row.append(editTodo); list.append(row);
+      const deleteTodo = element('button', 'delete-todo delete-action', '삭제');
+      deleteTodo.setAttribute('aria-label', todo.title + ' 삭제');
+      deleteTodo.onclick = () => confirmDelete(`“${todo.title}” 할 일을 삭제합니다. 삭제 후 되돌릴 수 없습니다.`, () => {
+        const currentTopic = state.topics.find(item => item.id === topic.id);
+        if (!currentTopic) throw new Error('주제를 찾을 수 없습니다.');
+        TaskStore.deleteTodo(currentTopic, todo.id);
+      });
+      row.append(editTodo, deleteTodo); list.append(row);
     });
     if (!visible.length) list.append(element('div', 'topic-empty', '아직 할 일이 없어요. 첫 번째 할 일을 적어보세요.'));
     const form = element('form', 'task-form');
@@ -137,8 +182,12 @@ $('#topic-form').onsubmit = event => {
   const name = $('#topic-name').value.trim();
   try {
     if (!name || name.length > 60) throw new Error('주제 이름을 입력해주세요.');
-    if (editingTopic) editingTopic.name = name;
-    else { const topic = TaskStore.addTopic(state, name); selectedTopic = null; topic.open = true; }
+    if (editingTopic) {
+      const topic = state.topics.find(item => item.id === editingTopic.id);
+      if (!topic) throw new Error('주제를 찾을 수 없습니다.');
+      topic.name = name; topic.emoji = selectedEmoji;
+    }
+    else { const topic = TaskStore.addTopic(state, name, selectedEmoji); selectedTopic = null; topic.open = true; }
     query = ''; filter = 'all'; $('#search').value = ''; updateFilters(); persist(); render(); $('#topic-dialog').close(); notify('주제를 저장했어요.');
   } catch (error) { notify(error.message); }
 };
@@ -146,7 +195,7 @@ document.querySelectorAll('[data-filter]').forEach(button => { button.onclick = 
 $('#search').oninput = event => { query = event.target.value; render(); };
 $('#all-topics').onclick = () => { selectedTopic = null; render(); };
 document.addEventListener('keydown', event => {
-  if (event.key === '/' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName) && !$('#topic-dialog').open) { event.preventDefault(); $('#search').focus(); }
+  if (event.key === '/' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName) && !document.querySelector('dialog[open]')) { event.preventDefault(); $('#search').focus(); }
 });
 window.addEventListener('storage', event => {
   if (event.key !== TaskStore.KEY) return;
