@@ -46,8 +46,8 @@ final class EmojiQA: NSObject, WKNavigationDelegate {
           document.querySelector('#sync-now').hidden=message==='이 브라우저에 저장됨';
           document.querySelector('#account-button').textContent=message==='이 브라우저에 저장됨'?'로그인':'나의 계정';
           const header=document.querySelector('.topbar'),tools=document.querySelector('.account-tools'),status=document.querySelector('#save-status');
-          const h=header.getBoundingClientRect(),t=tools.getBoundingClientRect(),s=status.getBoundingClientRect(),edge=h.right-parseFloat(getComputedStyle(header).paddingRight);
-          if(Math.abs(t.right-edge)>1||s.left<t.left-1||s.right>t.right+1||(innerWidth<=720&&Math.abs(s.right-edge)>1)||document.documentElement.scrollWidth>innerWidth)throw new Error('Status alignment: '+message);
+          const h=header.getBoundingClientRect(),t=tools.getBoundingClientRect(),s=status.getBoundingClientRect(),b=document.querySelector('.workspace-path').getBoundingClientRect(),edge=h.right-parseFloat(getComputedStyle(header).paddingRight);
+          if(Math.abs(t.right-edge)>1||Math.abs(s.top-b.top)>1||b.right>s.left+1||(innerWidth>1050?s.right>t.left:Math.abs(s.right-edge)>1||t.top<s.bottom)||document.documentElement.scrollWidth>innerWidth)throw new Error('Status alignment: '+message);
         }
         async function measure(button){
           const image=button.querySelector('.emoji-image');if(!image)throw new Error('No image');await image.decode();
