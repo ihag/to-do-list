@@ -5,7 +5,7 @@
   <meta name="description" content="주제별로 정리하고, 하나씩 완료하는 나의 할 일 공간 TaskFlow.">
   <title>TaskFlow · 나의 할 일</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%232b75ee'/%3E%3Cpath d='m8 16 5 5 11-12' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=18"><script defer src="config.js?v=18"></script><script defer src="store.js?v=18"></script><script defer src="sync.js?v=18"></script><script defer src="app.js?v=18"></script>
+  <link rel="stylesheet" href="styles.css?v=19"><script defer src="config.js?v=19"></script><script defer src="store.js?v=19"></script><script defer src="sync.js?v=19"></script><script defer src="app.js?v=19"></script>
   <link rel="license" href="emojis/NOTICE.txt">
 </head>
 <body>
@@ -24,7 +24,7 @@
     <div class="content">
       <div id="sync-conflict" class="sync-banner" role="alert" hidden><div><strong>다른 기기에서도 목록이 바뀌었어요.</strong><p>서로 다른 항목은 합칠 수 있어요. 같은 항목은 이 기기의 변경이 우선합니다.</p></div><div class="sync-banner-actions"><button id="merge-changes" class="primary">내 변경 합쳐 저장</button><button id="use-remote">다른 기기 목록 사용</button></div></div>
       <h1 class="date-label" id="today"></h1>
-      <section class="stats stats-row" aria-label="할 일 현황"><div><span>전체 할 일</span><strong id="total">0<small>개</small></strong><span class="stat-symbol" aria-hidden="true">▤</span></div><div><span>진행 중</span><strong id="pending">0<small>개</small></strong><span class="stat-symbol sky" aria-hidden="true">◷</span></div><div><span>완료한 할 일</span><strong id="completed">0<small>개</small></strong><span class="stat-symbol blue" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 6.5"/></svg></span></div><div class="progress-stat"><span>나의 달성률 <strong id="percent">0%</strong></span><div class="progress-track" role="progressbar" aria-label="나의 달성률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="overall-progress"></div></div><small id="progress-caption">첫 번째 할 일을 시작해보세요.</small></div></section>
+      <section class="stats stats-row" aria-label="할 일 현황"><div><span>전체 할 일</span><strong id="total">0<small>개</small></strong></div><div><span>진행 중</span><strong id="pending">0<small>개</small></strong></div><div><span>완료한 할 일</span><strong id="completed">0<small>개</small></strong></div><div class="progress-stat"><span>나의 달성률</span><strong id="percent">0%</strong><div class="progress-track" role="progressbar" aria-label="나의 달성률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="overall-progress"></div></div><small id="progress-caption">첫 번째 할 일을 시작해보세요.</small></div></section>
       <div class="toolbar"><div class="filters" aria-label="상태 필터"><button data-filter="all" class="selected" aria-pressed="true">전체 <span id="filter-count">0</span></button><button data-filter="pending" aria-pressed="false">진행 중</button><button data-filter="done" aria-pressed="false">완료</button></div><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="할 일 검색" aria-label="할 일 검색"><kbd>/</kbd></label></div>
       <section id="topics" aria-label="주제별 할 일"></section>
       <button class="add-topic-card" id="bottom-add" aria-label="새 주제 만들기" title="새 주제 만들기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>

@@ -66,3 +66,15 @@
 .todo-row input[type=checkbox]{appearance:none;-webkit-appearance:none;background-color:white;background-image:none;background-position:center;background-repeat:no-repeat;background-size:14px 14px}.todo-row input[type=checkbox]:checked{background-color:#599aef;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5 10 17.5 19 6.5' fill='none' stroke='white' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}.todo-row input[type=checkbox]:checked:after{content:none}.stat-symbol.blue svg{display:block;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round}
 
 .todo-row input[type=checkbox]::after{content:none}
+
+/* 네 항목의 제목과 숫자를 같은 높이에 맞춘 하나의 요약 바. */
+.stats.stats-row{grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border:1px solid #e2ebf6;border-radius:12px;padding:12px 0;margin-bottom:26px!important;background:#fff;overflow:hidden}
+.stats.stats-row>div{height:60px;min-height:0;padding:0 12px!important;border:0!important;border-right:1px solid #e2ebf6!important;border-radius:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:6px;text-align:center}
+.stats.stats-row>div:last-child{border-right:0!important}
+.stats.stats-row>div>span:first-child{display:block;height:18px;line-height:18px;font-size:12px;color:#8692a4;letter-spacing:0;white-space:nowrap}
+.stats.stats-row strong,.stats.stats-row .progress-stat strong{display:block;margin:0;font-size:25px;line-height:30px;height:30px;font-weight:650;letter-spacing:-.6px;color:#2878ef}
+.stats.stats-row strong small{font-size:10px;margin-left:3px;color:#9aa5b5}
+.stats.stats-row .progress-track{position:absolute;bottom:0;width:65%;height:4px;margin:0}
+.stats.stats-row .progress-stat>small{display:none}
+@media(max-width:720px){.stats.stats-row{padding:10px 0;margin-bottom:24px!important;border-radius:10px}.stats.stats-row>div{height:54px;padding:0 4px!important;gap:4px}.stats.stats-row>div>span:first-child{font-size:10px;letter-spacing:-.3px}.stats.stats-row strong,.stats.stats-row .progress-stat strong{font-size:22px;line-height:28px;height:28px}.stats.stats-row .progress-track{width:70%;height:3px}}
+@media(max-width:360px){.stats.stats-row>div>span:first-child{font-size:9px}.stats.stats-row strong,.stats.stats-row .progress-stat strong{font-size:20px}}
