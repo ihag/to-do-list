@@ -35,6 +35,11 @@ final class EmojiQA: NSObject, WKNavigationDelegate {
         await new Promise(resolve=>setTimeout(resolve,60));
         state = TaskStore.initialState();state.topics[0].name='모바일에서 긴 주제 제목과 이모티콘 정렬 확인';render();
         if(document.documentElement.scrollWidth>innerWidth) throw new Error('Page overflow');
+        const cards=[...document.querySelectorAll('.stats>div')].map(card=>card.getBoundingClientRect());
+        if(cards.length!==4||cards.some(card=>Math.abs(card.top-cards[0].top)>1))throw new Error('Stats must stay in one row');
+        if(parseFloat(getComputedStyle(document.querySelector('#today')).fontSize)<20)throw new Error('Date too small');
+        const track=document.querySelector('.progress-track'),fill=document.querySelector('#overall-progress');
+        if(track.getAttribute('aria-valuenow')!=='20'||Math.abs(fill.getBoundingClientRect().width/track.getBoundingClientRect().width-.2)>.02)throw new Error('Progress mismatch');
         async function measure(button){
           const image=button.querySelector('.emoji-image');if(!image)throw new Error('No image');await image.decode();
           const b=button.getBoundingClientRect(),g=image.getBoundingClientRect();

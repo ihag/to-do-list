@@ -42,7 +42,7 @@ const url = process.env.TASKFLOW_QA_URL || 'http://127.0.0.1:8081/';
     await page.wait(`sync.user && !document.querySelector('#auth-dialog').open`);
   };
   const addTopic = async (page, name) => {
-    await page.evaluate(`document.querySelector('#add-topic').click();document.querySelector('#topic-name').value=${JSON.stringify(name)};document.querySelector('#topic-form').requestSubmit();`);
+    await page.evaluate(`document.querySelector('#bottom-add').click();document.querySelector('#topic-name').value=${JSON.stringify(name)};document.querySelector('#topic-form').requestSubmit();`);
   };
   await login(desktop, true);
   assert.equal(await desktop.evaluate(`state.topics.length`),0);

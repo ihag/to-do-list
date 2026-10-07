@@ -81,6 +81,7 @@ function render() {
   $('#completed').replaceChildren(document.createTextNode(done), element('small', '', '개'));
   $('#percent').textContent = percent + '%';
   $('#overall-progress').style.width = percent + '%';
+  $('.progress-track').setAttribute('aria-valuenow', String(percent));
   $('#progress-caption').textContent = percent === 100 ? '오늘의 할 일, 모두 해냈어요!' : done ? `${done}개의 작은 완료가 쌓였어요.` : '첫 번째 할 일을 시작해보세요.';
   $('#nav-count').textContent = todos.length - done;
   $('#filter-count').textContent = todos.length;
@@ -194,7 +195,7 @@ function updateFilters() {
   });
 }
 $('#today').textContent = new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }).format(new Date());
-['#add-topic', '#sidebar-add', '#bottom-add'].forEach(selector => { $(selector).onclick = () => openTopicDialog(); });
+['#sidebar-add', '#bottom-add'].forEach(selector => { $(selector).onclick = () => openTopicDialog(); });
 ['#close-dialog', '#cancel-dialog'].forEach(selector => { $(selector).onclick = () => $('#topic-dialog').close(); });
 $('#topic-form').onsubmit = event => {
   event.preventDefault();
