@@ -5,7 +5,7 @@
   <meta name="description" content="주제별로 정리하고, 하나씩 완료하는 나의 할 일 공간 TaskFlow.">
   <title>TaskFlow · 나의 할 일</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%232b75ee'/%3E%3Cpath d='m8 16 5 5 11-12' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=3"><script defer src="store.js?v=3"></script><script defer src="app.js?v=3"></script>
+  <link rel="stylesheet" href="styles.css?v=4"><script defer src="store.js?v=4"></script><script defer src="app.js?v=4"></script>
 </head>
 <body>
   <aside class="sidebar">
@@ -27,7 +27,7 @@
       <div class="list-heading"><h2 id="list-title">나의 주제</h2><span>내가 정한 주제, 내가 만드는 하루</span></div>
       <section id="topics" aria-label="주제별 할 일"></section>
       <button class="add-topic-card" id="bottom-add">＋ <span>새로운 주제 만들기</span></button>
-      <footer><span>조금씩 쌓이는 당신의 하루.</span><span>Made for your flow <span class="footer-mark">✧</span></span></footer>
+      <footer><span>조금씩 쌓이는 당신의 하루.</span><span><a href="emojis/NOTICE.txt" aria-label="이모티콘 저작권 안내">Twemoji</a> · Made for your flow <span class="footer-mark">✧</span></span></footer>
     </div>
   </main>
   <dialog id="topic-dialog"><form id="topic-form"><div class="dialog-heading"><h2 id="dialog-title">새로운 주제</h2><button type="button" id="close-dialog" aria-label="닫기">×</button></div><p>함께 묶고 싶은 할 일에 이름을 붙여주세요.</p><label>주제 이름<input id="topic-name" required maxlength="60" placeholder="예: 이번 주 업무, 나를 위한 시간" autocomplete="off"></label><fieldset class="emoji-field"><legend>이모티콘</legend><div id="emoji-picker" class="emoji-picker"></div></fieldset><div class="dialog-actions"><button type="button" id="cancel-dialog">취소</button><button class="primary" type="submit">저장하기</button></div></form></dialog>
