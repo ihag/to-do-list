@@ -1,6 +1,7 @@
 (function (root) {
   'use strict';
   const KEY = 'taskflow.workspace.v1';
+  const EMOJIS = ['📋', '💼', '🌿', '🏠', '🎯', '📚', '💡', '💻', '🎨', '💪', '✈️', '🛒', '🎵', '❤️', '⭐', '☕'];
   const uid = () => root.crypto.randomUUID();
   function initialState() {
     return { version: 1, topics: [
@@ -19,11 +20,16 @@
   function validate(state) {
     const ids = new Set();
     const unique = id => typeof id === 'string' && id.length > 0 && !ids.has(id) && !!ids.add(id);
-    return state && state.version === 1 && Array.isArray(state.topics) && state.topics.every(topic =>
+    const topicsValid = topics => Array.isArray(topics) && topics.length <= 100 && topics.every(topic =>
       unique(topic.id) && typeof topic.name === 'string' && topic.name.trim().length > 0 && topic.name.length <= 60 &&
-      typeof topic.open === 'boolean' && Array.isArray(topic.todos) && topic.todos.every(todo =>
+      (topic.emoji === undefined || EMOJIS.includes(topic.emoji)) &&
+      typeof topic.open === 'boolean' && Array.isArray(topic.todos) && topic.todos.length <= 1000 && topic.todos.every(todo =>
         unique(todo.id) && typeof todo.title === 'string' && todo.title.trim().length > 0 && todo.title.length <= 200 &&
         typeof todo.done === 'boolean' && typeof todo.due === 'string' && (!todo.due || /^\d{4}-\d{2}-\d{2}$/.test(todo.due))));
+    return !!(state && state.version === 1 && topicsValid(state.topics) &&
+      (state.workspaces === undefined || (state.topics.length === 0 && Array.isArray(state.workspaces) && state.workspaces.length <= 50 &&
+        state.workspaces.every(workspace => unique(workspace.id) && typeof workspace.name === 'string' &&
+          workspace.name.trim().length > 0 && workspace.name.length <= 60 && EMOJIS.includes(workspace.emoji) && topicsValid(workspace.topics)))));
   }
   function load(storage) {
     const value = storage.getItem(KEY);
@@ -36,10 +42,43 @@
     if (!validate(state)) throw new Error('저장할 데이터가 올바르지 않습니다.');
     storage.setItem(KEY, JSON.stringify(state));
   }
-  function addTopic(state, name) {
+  function workspaces(state) {
+    return state.workspaces || [{id: 'default', name: '나의 할 일', emoji: '📋', topics: state.topics}];
+  }
+  function expand(state) {
+    if (!state.workspaces) { state.workspaces = workspaces(state); state.topics = []; }
+    return state.workspaces;
+  }
+  function workspaceFields(name, emoji) {
+    const trimmed = name.trim();
+    if (!trimmed || trimmed.length > 60) throw new Error('워크스페이스 이름은 1–60자로 입력해주세요.');
+    if (!EMOJIS.includes(emoji)) throw new Error('이모티콘을 선택해주세요.');
+    return {name: trimmed, emoji};
+  }
+  function addWorkspace(state, name, emoji = '📋') {
+    const fields = workspaceFields(name, emoji);
+    if (workspaces(state).length >= 50) throw new Error('워크스페이스는 최대 50개까지 만들 수 있어요.');
+    const workspace = {id: uid(), ...fields, topics: []};
+    expand(state).push(workspace);
+    return workspace;
+  }
+  function editWorkspace(state, id, name, emoji) {
+    const fields = workspaceFields(name, emoji);
+    const workspace = expand(state).find(item => item.id === id);
+    if (!workspace) throw new Error('워크스페이스를 찾을 수 없습니다.');
+    Object.assign(workspace, fields);
+    return workspace;
+  }
+  function deleteWorkspace(state, id) {
+    const rows = expand(state), index = rows.findIndex(item => item.id === id);
+    if (index === -1) throw new Error('워크스페이스를 찾을 수 없습니다.');
+    rows.splice(index, 1);
+  }
+  function addTopic(state, name, emoji = '📋') {
     const trimmed = name.trim();
     if (!trimmed || trimmed.length > 60) throw new Error('주제 이름은 1–60자로 입력해주세요.');
-    const topic = { id: uid(), name: trimmed, open: true, todos: [] };
+    if (!EMOJIS.includes(emoji)) throw new Error('이모티콘을 선택해주세요.');
+    const topic = { id: uid(), name: trimmed, emoji, open: true, todos: [] };
     state.topics.push(topic);
     return topic;
   }
@@ -55,5 +94,15 @@
     return topic.todos.filter(todo => (filter === 'all' || (filter === 'done' ? todo.done : !todo.done)) &&
       (!search || todo.title.toLocaleLowerCase().includes(search) || topic.name.toLocaleLowerCase().includes(search)));
   }
-  root.TaskStore = { KEY, initialState, validate, load, save, addTopic, addTodo, visibleTodos };
+  function deleteTopic(state, topicId) {
+    const index = state.topics.findIndex(topic => topic.id === topicId);
+    if (index === -1) throw new Error('주제를 찾을 수 없습니다.');
+    state.topics.splice(index, 1);
+  }
+  function deleteTodo(topic, todoId) {
+    const index = topic.todos.findIndex(todo => todo.id === todoId);
+    if (index === -1) throw new Error('할 일을 찾을 수 없습니다.');
+    topic.todos.splice(index, 1);
+  }
+  root.TaskStore = { KEY, EMOJIS, initialState, validate, load, save, addTopic, addTodo, visibleTodos, deleteTopic, deleteTodo, workspaces, addWorkspace, editWorkspace, deleteWorkspace };
 })(globalThis);

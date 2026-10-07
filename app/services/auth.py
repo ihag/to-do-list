@@ -9,7 +9,7 @@ import jwt
 from pwdlib import PasswordHash
 
 from app.config import Settings
-from app.db import get_connection
+from app.db import get_connection, INTEGRITY_ERRORS
 from app.models.auth import User
 
 
@@ -35,11 +35,11 @@ def signup(connection: sqlite3.Connection, username: str, password: str) -> User
     try:
         with connection:
             cursor = connection.execute(
-                "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+                "INSERT INTO users (username, password_hash) VALUES (?, ?) RETURNING id",
                 (username, hashed),
             )
-            user = User(id=cursor.lastrowid, username=username)
-    except sqlite3.IntegrityError as exc:
+            user = User(id=cursor.fetchone()["id"], username=username)
+    except INTEGRITY_ERRORS as exc:
         raise HTTPException(status_code=400, detail="Username already registered") from exc
     return user
 
