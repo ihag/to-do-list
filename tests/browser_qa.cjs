@@ -78,6 +78,7 @@ const assert = require('node:assert/strict');
   await evaluate(`localStorage.clear();location.reload()`); await new Promise(resolve => setTimeout(resolve, 200)); await ready();
   for (const [width,height] of [[320,568],[360,800],[375,667],[390,844],[393,852],[412,915],[430,932],[568,320],[844,390],[721,900],[768,1024],[900,700],[1050,800],[1440,1100],[1920,1080]]) {
     await call('Emulation.setDeviceMetricsOverride', {width,height,deviceScaleFactor:1,mobile:width<900});
+    assert.equal(await evaluate(`(()=>{const logo=document.querySelector('.brand-icon'),vector=logo.querySelector('svg'),l=logo.getBoundingClientRect(),v=vector.getBoundingClientRect();if(vector.getAttribute('viewBox')!=='0 0 24 24'||logo.textContent.trim()||Math.abs(v.left+v.width/2-l.left-l.width/2)>.5||Math.abs(v.top+v.height/2-l.top-l.height/2)>.5)throw new Error('Logo vector alignment');return true})()`),true,`logo at ${width}`);
     assert.equal(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, `overflow at ${width}`);
     assert.equal(await evaluate(`getComputedStyle(document.querySelector('.stats')).gridTemplateColumns.split(' ').length`), 4);
     assert.equal(await evaluate(`(()=>{const cards=[...document.querySelectorAll('.stats>div')].map(card=>card.getBoundingClientRect());return cards.every(card=>Math.abs(card.top-cards[0].top)<1)})()`), true);

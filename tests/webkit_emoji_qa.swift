@@ -35,6 +35,7 @@ final class EmojiQA: NSObject, WKNavigationDelegate {
         await new Promise(resolve=>setTimeout(resolve,60));
         document.querySelector('#overall-progress').style.transition='none';
         state = TaskStore.initialState();state.topics[0].name='모바일에서 긴 주제 제목과 이모티콘 정렬 확인';render();
+        const logo=document.querySelector('.brand-icon'),vector=logo.querySelector('svg'),l=logo.getBoundingClientRect(),v=vector.getBoundingClientRect();if(vector.getAttribute('viewBox')!=='0 0 24 24'||logo.textContent.trim()||Math.abs(v.left+v.width/2-l.left-l.width/2)>.5||Math.abs(v.top+v.height/2-l.top-l.height/2)>.5)throw new Error('Logo vector alignment');
         if(document.documentElement.scrollWidth>innerWidth) throw new Error('Page overflow');
         const cards=[...document.querySelectorAll('.stats>div')].map(card=>card.getBoundingClientRect());
         if(cards.length!==4||cards.some(card=>Math.abs(card.top-cards[0].top)>1))throw new Error('Stats must stay in one row');
