@@ -62,3 +62,7 @@
 .todo-row .todo-edit-input{appearance:none;border:1px solid #2878ef;border-radius:6px;padding:6px 8px;background:white;color:inherit;outline:none;box-shadow:none}.todo-row .todo-edit-input:focus,.todo-row .todo-edit-input:focus-visible{border-color:#2878ef;outline:none;box-shadow:none}
 
 #topics.masonry{grid-auto-rows:1px;row-gap:0;grid-auto-flow:row dense;column-gap:18px}
+
+.todo-row input[type=checkbox]{appearance:none;-webkit-appearance:none;background-color:white;background-image:none;background-position:center;background-repeat:no-repeat;background-size:14px 14px}.todo-row input[type=checkbox]:checked{background-color:#599aef;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5 10 17.5 19 6.5' fill='none' stroke='white' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}.todo-row input[type=checkbox]:checked:after{content:none}.stat-symbol.blue svg{display:block;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round}
+
+.todo-row input[type=checkbox]::after{content:none}
