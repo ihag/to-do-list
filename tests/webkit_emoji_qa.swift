@@ -43,13 +43,14 @@ final class EmojiQA: NSObject, WKNavigationDelegate {
         if(parseFloat(getComputedStyle(document.querySelector('#today')).fontSize)<20)throw new Error('Date too small');
         const track=document.querySelector('.progress-track'),fill=document.querySelector('#overall-progress');
         if(track.getAttribute('aria-valuenow')!=='20'||Math.abs(fill.getBoundingClientRect().width/track.getBoundingClientRect().width-.2)>.02)throw new Error('Progress mismatch');
+        if(document.querySelector('footer,.topbar,.list-heading')||document.querySelector('#workspace-edit').textContent.trim())throw new Error('Removed copy remains');const add=document.querySelector('#bottom-add'),a=add.getBoundingClientRect();if(a.width!==48||a.height!==48||getComputedStyle(add).borderRadius!=='50%'||!add.querySelector('svg'))throw new Error('Topic add circle');for(const form of document.querySelectorAll('.topic[open] .task-form')){const rects=[...form.children].map(e=>e.getBoundingClientRect()),middle=rects[1].top+rects[1].height/2;if(rects.some(r=>Math.abs(r.top+r.height/2-middle)>1)||form.scrollWidth>form.clientWidth||!form.querySelector('.calendar-control svg')||getComputedStyle(form.querySelector('input[type=date]')).opacity!=='0')throw new Error('Task input row');}
         for(const message of ['이 브라우저에 저장됨','모든 기기에 동기화됨','서버 미저장 · 이 기기에 보관됨']){
           document.querySelector('#save-status').textContent=message;
           document.querySelector('#sync-now').hidden=message==='이 브라우저에 저장됨';
           document.querySelector('#account-button').textContent=message==='이 브라우저에 저장됨'?'로그인':'나의 계정';
-          const header=document.querySelector('.topbar'),tools=document.querySelector('.account-tools'),status=document.querySelector('#save-status');
-          const h=header.getBoundingClientRect(),t=tools.getBoundingClientRect(),s=status.getBoundingClientRect(),b=document.querySelector('.workspace-path').getBoundingClientRect(),edge=h.right-parseFloat(getComputedStyle(header).paddingRight);
-          if(Math.abs(t.right-edge)>1||Math.abs(s.top-b.top)>1||b.right>s.left+1||(innerWidth>1050?s.right>t.left:Math.abs(s.right-edge)>1||t.top<s.bottom)||document.documentElement.scrollWidth>innerWidth)throw new Error('Status alignment: '+message);
+          const header=document.querySelector('.app-header'),tools=document.querySelector('.account-tools'),status=document.querySelector('#save-status');
+          const h=header.getBoundingClientRect(),t=tools.getBoundingClientRect(),s=status.getBoundingClientRect(),b=document.querySelector('.brand').getBoundingClientRect(),edge=h.right-parseFloat(getComputedStyle(header).paddingRight);
+          if(!(Math.abs(t.right-edge)<1&&Math.abs((t.top+t.height/2)-(b.top+b.height/2))<1&&b.right<t.left&&(innerWidth>720?s.right<=t.left:Math.abs(s.right-edge)<1&&s.bottom<=t.top)&&h.height===(innerWidth>720?77:85)&&document.documentElement.scrollWidth<=innerWidth))throw new Error('Status alignment: '+message);
         }
         async function measure(button){
           const image=button.querySelector('.emoji-image');if(!image)throw new Error('No image');await image.decode();
