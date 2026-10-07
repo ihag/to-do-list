@@ -25,6 +25,19 @@ function element(tag, className, text) {
   if (text !== undefined) node.textContent = text;
   return node;
 }
+function emojiGraphic(emoji) {
+  const glyph = element('span', 'emoji-glyph');
+  glyph.setAttribute('aria-hidden', 'true');
+  const image = element('img', 'emoji-image');
+  const code = Array.from(emoji).filter(character => character.codePointAt(0) !== 0xfe0f).map(character => character.codePointAt(0).toString(16)).join('-');
+  image.src = `emojis/${code}.png`;
+  image.alt = '';
+  image.width = 20;
+  image.height = 20;
+  image.draggable = false;
+  glyph.append(image, element('span', 'emoji-text', emoji));
+  return glyph;
+}
 function openTopicDialog(topic = null) {
   editingTopic = topic;
   $('#dialog-title').textContent = topic ? '주제 이름 수정' : '새로운 주제';
@@ -38,9 +51,7 @@ function renderEmojiPicker() {
   $('#emoji-picker').replaceChildren();
   TaskStore.EMOJIS.forEach(emoji => {
     const button = element('button', 'emoji-choice');
-    const glyph = element('span', 'emoji-glyph', emoji);
-    glyph.setAttribute('aria-hidden', 'true');
-    button.append(glyph);
+    button.append(emojiGraphic(emoji));
     button.type = 'button';
     button.setAttribute('aria-label', emoji + ' 이모티콘');
     button.setAttribute('aria-pressed', String(emoji === selectedEmoji));
@@ -76,7 +87,9 @@ function render() {
   $('#topic-nav').replaceChildren();
   state.topics.forEach(topic => {
     const button = element('button', 'topic-nav-item' + (selectedTopic === topic.id ? ' selected' : ''));
-    button.append(element('span', 'nav-emoji', topic.emoji || '📋'), element('span', '', topic.name));
+    const navEmoji = element('span', 'nav-emoji');
+    navEmoji.append(emojiGraphic(topic.emoji || '📋'));
+    button.append(navEmoji, element('span', '', topic.name));
     button.onclick = () => { selectedTopic = topic.id; render(); };
     $('#topic-nav').append(button);
   });
@@ -89,9 +102,7 @@ function render() {
     details.open = query || filter !== 'all' ? true : topic.open;
     const summary = element('summary');
     const emojiButton = element('button', 'topic-icon');
-    const glyph = element('span', 'emoji-glyph', topic.emoji || '📋');
-    glyph.setAttribute('aria-hidden', 'true');
-    emojiButton.append(glyph);
+    emojiButton.append(emojiGraphic(topic.emoji || '📋'));
     emojiButton.type = 'button';
     emojiButton.setAttribute('aria-label', topic.name + ' 이모티콘 변경');
     emojiButton.onclick = event => { event.preventDefault(); openTopicDialog(topic); $('#emoji-picker').querySelector('[aria-pressed=true]').focus(); };

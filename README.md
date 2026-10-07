@@ -47,6 +47,16 @@ workflow 권한이 있는 인증을 사용하게 되면 이를 `.github/workflow
 `tests/browser_qa.cjs`는 별도로 실행 중인 로컬 Chrome(디버깅 포트 9227)과
 웹 서버(8080)를 사용하여 실제 화면 동작 및 모바일 레이아웃을 검사합니다.
 
+이모티콘은 기기의 글꼴에 영향을 받지 않는 자체 호스팅 256px 투명 PNG로 표시합니다.
+Twemoji v17.0.3 그래픽(CC BY 4.0)의 SVG viewBox를 그림 영역 기준으로 조정하고,
+기기별 SVG 렌더링 차이도 없도록 대칭 여백을 적용한 PNG를 생성했습니다.
+출처·변경 내역과 라이선스는 `web/emojis/NOTICE.txt` 및 `LICENSE-GRAPHICS.txt`에 있습니다.
+
+`node tests/mobile_emoji_qa.cjs`는 11가지 화면 크기에서 16개 이모티콘의 실제
+그림 픽셀 중심과 버튼 중심의 차이가 0.6px 이하인지 검증합니다.
+macOS의 `swift tests/webkit_emoji_qa.swift`는 시스템 WebKit에서도 같은 검사를 수행합니다.
+테스트는 실물 휴대폰 검증을 대신하지 않습니다.
+
 ## 기존 FastAPI 백엔드
 
 사용자 인증과 SQLite 저장을 제공하는 FastAPI 할일 API입니다. Python 3.9 이상을 사용합니다.

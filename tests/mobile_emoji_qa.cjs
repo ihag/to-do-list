@@ -18,6 +18,17 @@ const sizes = [[320,568],[360,800],[375,667],[390,844],[393,852],[412,915],[430,
     if (result.exceptionDetails) throw new Error(JSON.stringify(result.exceptionDetails));
     return result.result.value;
   };
+  const checkArtwork = async (selector, label) => {
+    const results = await evaluate(`(async()=>{const buttons=[...document.querySelectorAll(${JSON.stringify(selector)})];return await Promise.all(buttons.map(async button=>{
+      const image=button.querySelector('.emoji-image');if(!image)throw new Error('Missing image');await image.decode();
+      const b=button.getBoundingClientRect(),g=image.getBoundingClientRect();const canvas=document.createElement('canvas');canvas.width=canvas.height=160;const context=canvas.getContext('2d');context.drawImage(image,0,0,160,160);
+      const pixels=context.getImageData(0,0,160,160).data;let minX=160,minY=160,maxX=-1,maxY=-1;
+      for(let y=0;y<160;y++)for(let x=0;x<160;x++)if(pixels[(y*160+x)*4+3]>32){minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);}
+      if(maxX<0)throw new Error('Empty artwork');const centerX=g.x+((minX+maxX+1)/2/160)*g.width,centerY=g.y+((minY+maxY+1)/2/160)*g.height;
+      return {emoji:button.textContent,dx:Math.abs(centerX-b.x-b.width/2),dy:Math.abs(centerY-b.y-b.height/2),loaded:image.naturalWidth>0};
+    }));})()`);
+    for (const result of results) assert.ok(result.loaded&&result.dx<0.6&&result.dy<0.6,`${label}: actual artwork off-center ${JSON.stringify(result)}`);
+  };
   await call('Page.enable'); await call('Runtime.enable'); await call('Network.enable');
   await call('Network.setCacheDisabled',{cacheDisabled:true});
   await call('Page.navigate',{url:baseUrl});
@@ -34,10 +45,12 @@ const sizes = [[320,568],[360,800],[375,667],[390,844],[393,852],[412,915],[430,
       const measure = await evaluate(`(()=>{const button=document.querySelector('.topic-icon');const glyph=button.querySelector('.emoji-glyph');const b=button.getBoundingClientRect(),g=glyph.getBoundingClientRect();return {dx:Math.abs(g.x+g.width/2-b.x-b.width/2),dy:Math.abs(g.y+g.height/2-b.y-b.height/2),inside:g.x>=b.x&&g.right<=b.right&&g.y>=b.y&&g.bottom<=b.bottom,padding:getComputedStyle(button).padding};})()`);
       assert.ok(measure.dx < 0.6 && measure.dy < 0.6 && measure.inside,`${width}x${height} ${emoji}: ${JSON.stringify(measure)}`);
       assert.equal(measure.padding,'0px');
+      await checkArtwork('.topic-icon',`${width}x${height} ${emoji}`);
     }
     await evaluate(`document.querySelector('.topic-icon').click()`);
     const choices = await evaluate(`Array.from(document.querySelectorAll('.emoji-choice')).map(button=>{const b=button.getBoundingClientRect(),g=button.querySelector('.emoji-glyph').getBoundingClientRect();return {emoji:button.textContent,dx:Math.abs(g.x+g.width/2-b.x-b.width/2),dy:Math.abs(g.y+g.height/2-b.y-b.height/2),inside:g.x>=b.x&&g.right<=b.right&&g.y>=b.y&&g.bottom<=b.bottom};})`);
     for (const measure of choices) assert.ok(measure.dx<0.6&&measure.dy<0.6&&measure.inside,`${width}x${height} picker: ${JSON.stringify(measure)}`);
+    await checkArtwork('.emoji-choice',`${width}x${height} picker`);
     assert.equal(await evaluate(`document.querySelector('#topic-dialog').scrollWidth<=document.querySelector('#topic-dialog').clientWidth`),true,`${width}x${height}: dialog overflow`);
     if ([320,390,430].includes(width)) {
       const capture=await call('Page.captureScreenshot',{format:'png'});
@@ -50,5 +63,5 @@ const sizes = [[320,568],[360,800],[375,667],[390,844],[393,852],[412,915],[430,
   assert.equal(errors.length,0,JSON.stringify(errors));
   await evaluate(`localStorage.clear();location.reload()`);
   socket.close();
-  console.log(`Emoji layout passed at ${sizes.map(size=>size.join('x')).join(', ')}: all 16 emojis centered and contained in topic buttons and picker; long titles, no horizontal overflow, selection works; zero runtime errors. URL: ${baseUrl}`);
+  console.log(`Emoji layout passed at ${sizes.map(size=>size.join('x')).join(', ')}: actual rasterized artwork of all 16 emoji centered within 0.6px in topic buttons and picker; long titles, no horizontal overflow, selection works; zero runtime errors. URL: ${baseUrl}`);
 })().catch(error=>{console.error(error);process.exit(1);});
