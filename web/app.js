@@ -58,6 +58,7 @@ function openTopicDialog(topic = null) {
   editingTopic = topic;
   $('#dialog-title').textContent = topic ? '주제 이름 수정' : '새로운 주제';
   $('#topic-name').value = topic ? topic.name : '';
+  $('#topic-delete').hidden = !topic;
   selectedEmoji = topic?.emoji || '📋';
   renderEmojiPicker();
   $('#topic-dialog').showModal();
@@ -117,29 +118,16 @@ function render() {
     const details = element('details', 'topic');
     details.open = query || filter !== 'all' ? true : topic.open;
     const summary = element('summary');
-    const emojiButton = element('button', 'topic-icon');
-    emojiButton.append(emojiGraphic(topic.emoji || '📋'));
-    emojiButton.type = 'button';
-    emojiButton.setAttribute('aria-label', topic.name + ' 이모티콘 변경');
-    emojiButton.onclick = event => { event.preventDefault(); openTopicDialog(topic); $('#emoji-picker').querySelector('[aria-pressed=true]').focus(); };
-    summary.append(element('span', 'chevron', '›'), emojiButton, element('span', 'topic-title', topic.name), element('span', 'topic-count', topic.todos.length));
+    const icon = element('span', 'topic-icon'); icon.append(emojiGraphic(topic.emoji || '📋'));
+    summary.append(icon, element('span', 'topic-title', topic.name), element('span', 'topic-count', topic.todos.length));
     const actions = element('span', 'topic-actions');
-    const edit = element('button', 'edit-topic', '수정');
-    edit.type = 'button';
-    edit.setAttribute('aria-label', topic.name + ' 주제 이름 수정');
+    const chevron = element('span', 'chevron'); chevron.setAttribute('aria-hidden', 'true');
+    chevron.innerHTML = '<svg viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg>';
+    const edit = element('button', 'edit-topic'); edit.type = 'button';
+    edit.setAttribute('aria-label', topic.name + ' 주제 수정'); edit.title = '주제 수정';
+    edit.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15z"/></svg>';
     edit.onclick = event => { event.preventDefault(); openTopicDialog(topic); };
-    const deleteTopic = element('button', 'delete-topic delete-action', '삭제');
-    deleteTopic.type = 'button';
-    deleteTopic.setAttribute('aria-label', topic.name + ' 주제 삭제');
-    deleteTopic.onclick = event => {
-      event.preventDefault();
-      confirmDelete(`“${topic.name}” 주제와 그 안의 할 일 ${topic.todos.length}개를 삭제합니다. 삭제 후 되돌릴 수 없습니다.`, () => {
-        TaskStore.deleteTopic(currentWorkspace(), topic.id);
-        if (selectedTopic === topic.id) selectedTopic = null;
-      });
-    };
-    actions.append(edit, deleteTopic);
-    summary.append(actions);
+    actions.append(chevron, edit); summary.append(actions);
     const list = element('div', 'todo-list');
     visible.forEach(todo => {
       const row = element('div', 'todo-row' + (todo.done ? ' done' : ''));
@@ -174,7 +162,6 @@ function render() {
       });
       row.append(editTodo, deleteTodo); list.append(row);
     });
-    if (!visible.length) list.append(element('div', 'topic-empty', '아직 할 일이 없어요. 첫 번째 할 일을 적어보세요.'));
     const form = element('form', 'task-form');
     const input = element('input'); input.type = 'text'; input.placeholder = '새로운 할 일 추가하기'; input.required = true; input.maxLength = 200; input.setAttribute('aria-label', topic.name + '에 할 일 추가');
     const due = element('input'); due.type = 'date'; due.setAttribute('aria-label', '할 일 기한');
@@ -323,6 +310,17 @@ $('#workspace-delete').onclick = () => {
 };
 $('#today').textContent = new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }).format(new Date());
 ['#sidebar-add', '#bottom-add'].forEach(selector => { $(selector).onclick = () => openTopicDialog(); });
+$('#topic-delete').onclick = () => {
+  const workspace = currentWorkspace(), topic = workspace?.topics.find(item => item.id === editingTopic?.id);
+  if (!topic) { notify('주제를 찾을 수 없습니다.'); return; }
+  const workspaceId = workspace.id, topicId = topic.id;
+  $('#topic-dialog').close();
+  confirmDelete(`“${topic.name}” 주제와 그 안의 할 일 ${topic.todos.length}개를 삭제합니다. 삭제 후 되돌릴 수 없습니다.`, () => {
+    const space = TaskStore.workspaces(state).find(item => item.id === workspaceId);
+    if (!space) throw new Error('워크스페이스를 찾을 수 없습니다.');
+    TaskStore.deleteTopic(space, topicId); if (selectedTopic === topicId) selectedTopic = null;
+  });
+};
 ['#close-dialog', '#cancel-dialog'].forEach(selector => { $(selector).onclick = () => $('#topic-dialog').close(); });
 $('#topic-form').onsubmit = event => {
   event.preventDefault();
