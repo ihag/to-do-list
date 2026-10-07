@@ -222,14 +222,44 @@ function updateFilters() {
 function resetWorkspaceView() {
   selectedTopic = null; filter = 'all'; query = ''; $('#search').value = ''; updateFilters();
 }
+function closeWorkspaceMenu(restoreFocus = false) {
+  $('#workspace-menu').hidden = true; $('#workspace-select').setAttribute('aria-expanded', 'false');
+  if (restoreFocus) $('#workspace-select').focus();
+}
+function chooseWorkspace(id) {
+  selectedWorkspace = id; resetWorkspaceView(); render(); $('#workspace-select').focus();
+}
+function openWorkspaceMenu() {
+  const trigger = $('#workspace-select'), menu = $('#workspace-menu');
+  if (trigger.disabled) return;
+  const bounds = $('.workspace-selector').getBoundingClientRect();
+  const below = innerHeight - bounds.bottom - 12, above = bounds.top - 12;
+  const upwards = below < 100 && above > below;
+  menu.style.left = bounds.left + 'px'; menu.style.width = bounds.width + 'px';
+  menu.style.top = upwards ? 'auto' : bounds.bottom + 6 + 'px';
+  menu.style.bottom = upwards ? innerHeight - bounds.top + 6 + 'px' : 'auto';
+  menu.style.maxHeight = Math.max(60, Math.min(320, (upwards ? above : below) - 6)) + 'px';
+  menu.hidden = false; trigger.setAttribute('aria-expanded', 'true');
+  menu.querySelector('[aria-selected=true]')?.focus();
+}
 function renderWorkspaces() {
-  const current = currentWorkspace(), select = $('#workspace-select');
-  select.replaceChildren();
+  const current = currentWorkspace(), trigger = $('#workspace-select'), menu = $('#workspace-menu');
+  closeWorkspaceMenu(); trigger.replaceChildren(element('span', 'workspace-trigger-name', current?.name || '워크스페이스를 만들어주세요'));
+  const chevron = element('span', 'workspace-chevron');
+  chevron.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>'; trigger.append(chevron);
+  trigger.value = current?.id || ''; trigger.disabled = !current; menu.replaceChildren();
   for (const workspace of TaskStore.workspaces(state)) {
-    const option = element('option', '', workspace.name); option.value = workspace.id; select.append(option);
+    const option = element('button', 'workspace-option'); option.type = 'button'; option.tabIndex = -1;
+    option.setAttribute('role', 'option'); option.setAttribute('aria-selected', String(workspace.id === current?.id));
+    option.dataset.workspaceId = workspace.id; option.title = workspace.name;
+    const icon = element('span', 'workspace-option-emoji'); icon.append(emojiGraphic(workspace.emoji));
+    option.append(icon, element('span', 'workspace-option-name', workspace.name));
+    if (workspace.id === current?.id) {
+      const check = element('span', 'workspace-option-check');
+      check.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 4 4 8-8"/></svg>'; option.append(check);
+    }
+    option.onclick = () => chooseWorkspace(workspace.id); menu.append(option);
   }
-  if (!current) { const option = element('option', '', '워크스페이스를 만들어주세요'); option.value = ''; select.append(option); }
-  select.value = current?.id || ''; select.disabled = !current;
   $('#workspace-edit').disabled = !current;
   $('#workspace-emoji').replaceChildren();
   if (current) $('#workspace-emoji').append(emojiGraphic(current.emoji));
@@ -245,6 +275,7 @@ function renderWorkspaceEmojis() {
   }
 }
 function openWorkspaceDialog(workspace = null) {
+  closeWorkspaceMenu();
   editingWorkspace = workspace?.id || null; workspaceEmoji = workspace?.emoji || '📋';
   $('#workspace-dialog-title').textContent = workspace ? '워크스페이스 수정' : '새 워크스페이스';
   $('#workspace-name').value = workspace?.name || ''; $('#workspace-delete').hidden = !workspace;
@@ -252,7 +283,27 @@ function openWorkspaceDialog(workspace = null) {
 }
 $('#workspace-add').onclick = () => openWorkspaceDialog();
 $('#workspace-edit').onclick = () => openWorkspaceDialog(currentWorkspace());
-$('#workspace-select').onchange = event => { selectedWorkspace = event.target.value; resetWorkspaceView(); render(); };
+$('#workspace-select').onchange = event => chooseWorkspace(event.target.value);
+$('#workspace-select').onclick = () => { if ($('#workspace-menu').hidden) openWorkspaceMenu(); else closeWorkspaceMenu(true); };
+$('#workspace-select').onkeydown = event => {
+  if (['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); openWorkspaceMenu(); }
+};
+$('#workspace-menu').onkeydown = event => {
+  const options = [...$('#workspace-menu').querySelectorAll('[role=option]')];
+  const index = options.indexOf(document.activeElement);
+  if (event.key === 'Escape') { event.preventDefault(); closeWorkspaceMenu(true); }
+  else if (event.key === 'Tab') closeWorkspaceMenu();
+  else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+    event.preventDefault();
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+    options[next]?.focus();
+  }
+};
+document.addEventListener('pointerdown', event => {
+  if (!event.target.closest('.workspace-selector, #workspace-menu')) closeWorkspaceMenu();
+});
+window.addEventListener('resize', () => closeWorkspaceMenu());
+window.addEventListener('scroll', event => { if (!$('#workspace-menu').contains(event.target)) closeWorkspaceMenu(); }, true);
 ['#workspace-close', '#workspace-cancel'].forEach(selector => { $(selector).onclick = () => $('#workspace-dialog').close(); });
 $('#workspace-form').onsubmit = event => {
   event.preventDefault();
@@ -380,7 +431,7 @@ $('#merge-changes').onclick = () => sync.resolve(true);
 $('#use-remote').onclick = () => {
   if (window.confirm('이 기기의 저장 대기 중 변경을 취소하고 다른 기기 목록을 사용할까요?')) sync.resolve(false);
 };
-const canRefresh = () => !document.hidden && !document.querySelector('dialog[open], .todo-row input[type=text]');
+const canRefresh = () => !document.hidden && !document.querySelector('dialog[open], .todo-row input[type=text], #workspace-menu:not([hidden])');
 setInterval(() => { if (canRefresh()) sync.refresh(); }, 30000);
 window.addEventListener('focus', () => { if (canRefresh()) sync.refresh(); });
 window.addEventListener('online', () => { if (sync.dirty) sync.flush(); else if (canRefresh()) sync.refresh(); });

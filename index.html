@@ -5,7 +5,7 @@
   <meta name="description" content="주제별로 정리하고, 하나씩 완료하는 나의 할 일 공간 TaskFlow.">
   <title>TaskFlow · 나의 할 일</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%232b75ee'/%3E%3Cpath d='m8 16 5 5 11-12' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=13"><script defer src="config.js?v=13"></script><script defer src="store.js?v=13"></script><script defer src="sync.js?v=13"></script><script defer src="app.js?v=13"></script>
+  <link rel="stylesheet" href="styles.css?v=14"><script defer src="config.js?v=14"></script><script defer src="store.js?v=14"></script><script defer src="sync.js?v=14"></script><script defer src="app.js?v=14"></script>
   <link rel="license" href="emojis/NOTICE.txt">
 </head>
 <body>
@@ -13,7 +13,8 @@
   <aside class="sidebar">
     <section class="workspace-switcher" aria-label="워크스페이스">
       <div class="workspace-heading"><span>MY WORKSPACE</span><button id="workspace-add" aria-label="워크스페이스 추가">＋ 새 공간</button></div>
-      <div class="workspace-selector"><span id="workspace-emoji" class="nav-emoji"></span><select id="workspace-select" aria-label="워크스페이스 선택"></select><button id="workspace-edit" aria-label="워크스페이스 수정" title="워크스페이스 수정"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15z"/></svg></button></div>
+      <div class="workspace-selector"><span id="workspace-emoji" class="nav-emoji"></span><button type="button" id="workspace-select" aria-label="워크스페이스 선택" aria-haspopup="listbox" aria-expanded="false" aria-controls="workspace-menu"></button><button id="workspace-edit" aria-label="워크스페이스 수정" title="워크스페이스 수정"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15z"/></svg></button></div>
+      <div id="workspace-menu" class="workspace-menu" role="listbox" aria-label="워크스페이스 목록" hidden></div>
     </section>
     <div class="sidebar-heading">주제 <button id="sidebar-add" aria-label="주제 추가">＋</button></div>
     <nav id="topic-nav" aria-label="주제 목록"></nav>
