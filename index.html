@@ -5,19 +5,22 @@
   <meta name="description" content="주제별로 정리하고, 하나씩 완료하는 나의 할 일 공간 TaskFlow.">
   <title>TaskFlow · 나의 할 일</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%232b75ee'/%3E%3Cpath d='m8 16 5 5 11-12' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=9"><script defer src="config.js?v=9"></script><script defer src="store.js?v=9"></script><script defer src="sync.js?v=9"></script><script defer src="app.js?v=9"></script>
+  <link rel="stylesheet" href="styles.css?v=10"><script defer src="config.js?v=10"></script><script defer src="store.js?v=10"></script><script defer src="sync.js?v=10"></script><script defer src="app.js?v=10"></script>
 </head>
 <body>
   <aside class="sidebar">
     <a class="brand" href="./"><span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M5 12.5 10 17.5 19 6.5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span> TaskFlow<span class="brand-dot">.</span></a>
-    <div class="workspace-label">MY WORKSPACE</div>
+    <section class="workspace-switcher" aria-label="워크스페이스">
+      <div class="workspace-heading"><span>MY WORKSPACE</span><button id="workspace-add" aria-label="워크스페이스 추가">＋ 새 공간</button></div>
+      <div class="workspace-selector"><span id="workspace-emoji" class="nav-emoji"></span><select id="workspace-select" aria-label="워크스페이스 선택"></select><button id="workspace-edit" aria-label="워크스페이스 수정">수정</button></div>
+    </section>
     <button class="nav-item active" id="all-topics"><span>▦</span> 나의 할 일 <span class="nav-count" id="nav-count">0</span></button>
     <div class="sidebar-heading">주제 <button id="sidebar-add" aria-label="주제 추가">＋</button></div>
     <nav id="topic-nav" aria-label="주제 목록"></nav>
     <div class="profile"><span class="avatar">ME</span><div><strong id="profile-name">나의 워크스페이스</strong><small id="profile-detail">개인 공간 · 브라우저 저장</small></div></div>
   </aside>
   <main>
-    <header class="topbar"><span class="workspace-path">워크스페이스 <span class="breadcrumb">/</span> <strong>나의 할 일</strong></span><span class="save-status" id="save-status" role="status">이 브라우저에 저장됨</span><div class="account-tools"><button id="sync-now" class="account-button" hidden>동기화</button><button id="account-button" class="account-button">로그인</button></div></header>
+    <header class="topbar"><span class="workspace-path">워크스페이스 <span class="breadcrumb">/</span> <strong id="workspace-current-name">나의 할 일</strong></span><span class="save-status" id="save-status" role="status">이 브라우저에 저장됨</span><div class="account-tools"><button id="sync-now" class="account-button" hidden>동기화</button><button id="account-button" class="account-button">로그인</button></div></header>
     <div class="content">
       <div id="sync-conflict" class="sync-banner" role="alert" hidden><div><strong>다른 기기에서도 목록이 바뀌었어요.</strong><p>서로 다른 항목은 합칠 수 있어요. 같은 항목은 이 기기의 변경이 우선합니다.</p></div><div class="sync-banner-actions"><button id="merge-changes" class="primary">내 변경 합쳐 저장</button><button id="use-remote">다른 기기 목록 사용</button></div></div>
       <h1 class="date-label" id="today"></h1>
@@ -29,6 +32,7 @@
       <footer><span>조금씩 쌓이는 당신의 하루.</span><span><a href="emojis/NOTICE.txt" aria-label="이모티콘 저작권 안내">Twemoji</a> · Made for your flow <span class="footer-mark">✧</span></span></footer>
     </div>
   </main>
+  <dialog id="workspace-dialog"><form id="workspace-form"><div class="dialog-heading"><h2 id="workspace-dialog-title">새 워크스페이스</h2><button type="button" id="workspace-close" aria-label="닫기">×</button></div><p>공간마다 주제와 할 일을 따로 관리해보세요.</p><label>워크스페이스 이름<input id="workspace-name" required maxlength="60" placeholder="예: 업무, 개인 프로젝트" autocomplete="off"></label><fieldset class="emoji-field"><legend>이모티콘</legend><div id="workspace-emoji-picker" class="emoji-picker"></div></fieldset><div class="workspace-dialog-actions"><button type="button" id="workspace-delete" class="delete-action">워크스페이스 삭제</button><div class="dialog-actions"><button type="button" id="workspace-cancel">취소</button><button class="primary" type="submit">저장하기</button></div></div></form></dialog>
   <dialog id="topic-dialog"><form id="topic-form"><div class="dialog-heading"><h2 id="dialog-title">새로운 주제</h2><button type="button" id="close-dialog" aria-label="닫기">×</button></div><p>함께 묶고 싶은 할 일에 이름을 붙여주세요.</p><label>주제 이름<input id="topic-name" required maxlength="60" placeholder="예: 이번 주 업무, 나를 위한 시간" autocomplete="off"></label><fieldset class="emoji-field"><legend>이모티콘</legend><div id="emoji-picker" class="emoji-picker"></div></fieldset><div class="dialog-actions"><button type="button" id="cancel-dialog">취소</button><button class="primary" type="submit">저장하기</button></div></form></dialog>
   <dialog id="delete-dialog" aria-labelledby="delete-title"><form method="dialog"><h2 id="delete-title">삭제할까요?</h2><p id="delete-description"></p><div class="dialog-actions"><button value="cancel" autofocus>취소</button><button class="danger" value="confirm">삭제하기</button></div></form></dialog>
   <dialog id="auth-dialog" aria-labelledby="auth-title"><form id="auth-form"><div class="dialog-heading"><h2 id="auth-title">로그인</h2><button type="button" id="close-auth" aria-label="닫기">×</button></div><p>PC와 휴대폰에서 같은 계정으로 로그인하면 목록을 함께 사용할 수 있어요.</p><label>아이디<input id="auth-username" required minlength="3" maxlength="64" pattern="[a-zA-Z0-9_.-]+" placeholder="영문·숫자·_.- 3자 이상" autocomplete="username" autocapitalize="none" spellcheck="false"></label><label>비밀번호<input id="auth-password" type="password" required minlength="8" maxlength="128" placeholder="8자 이상" autocomplete="current-password"></label><p id="auth-error" class="form-error" role="alert" hidden></p><div class="dialog-actions"><button type="button" id="auth-switch">회원가입</button><button type="submit" id="auth-submit" class="primary">로그인</button></div><small class="auth-note">브라우저에 저장한 기존 목록은 로그인 후 선택해서 가져올 수 있어요.</small></form></dialog>

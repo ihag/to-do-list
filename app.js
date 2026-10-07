@@ -1,7 +1,20 @@
 'use strict';
 const $ = selector => document.querySelector(selector);
 let state, storageReady = true, filter = 'all', query = '', selectedTopic = null, editingTopic = null, selectedEmoji = '📋', toastTimer;
-let sync, signupMode = false;
+let sync, signupMode = false, selectedWorkspace = 'default', editingWorkspace = null, workspaceEmoji = '📋', selectionAccount = null;
+function currentWorkspace() {
+  const key = 'taskflow.selection.' + (sync?.user?.id || 'guest');
+  if (selectionAccount !== key) {
+    selectionAccount = key;
+    try { selectedWorkspace = localStorage.getItem(key) || 'default'; } catch { selectedWorkspace = 'default'; }
+  }
+  const rows = TaskStore.workspaces(state);
+  const workspace = rows.find(item => item.id === selectedWorkspace) || rows[0];
+  selectedWorkspace = workspace?.id || null;
+  try { localStorage.setItem(key, selectedWorkspace || ''); } catch { /* 목록 저장과 선택 메뉴는 계속 사용한다. */ }
+  return workspace;
+}
+function workspaceTopics() { return currentWorkspace()?.topics || []; }
 function notify(message) {
   $('#toast').textContent = message;
   $('#toast').hidden = false;
@@ -41,6 +54,7 @@ function emojiGraphic(emoji) {
   return glyph;
 }
 function openTopicDialog(topic = null) {
+  if (!currentWorkspace()) { notify('워크스페이스를 먼저 만들어주세요.'); openWorkspaceDialog(); return; }
   editingTopic = topic;
   $('#dialog-title').textContent = topic ? '주제 이름 수정' : '새로운 주제';
   $('#topic-name').value = topic ? topic.name : '';
@@ -73,7 +87,8 @@ function confirmDelete(description, action) {
   dialog.showModal();
 }
 function render() {
-  const todos = state.topics.flatMap(topic => topic.todos);
+  renderWorkspaces();
+  const todos = workspaceTopics().flatMap(topic => topic.todos);
   const done = todos.filter(todo => todo.done).length;
   const percent = todos.length ? Math.round(done / todos.length * 100) : 0;
   $('#total').replaceChildren(document.createTextNode(todos.length), element('small', '', '개'));
@@ -86,9 +101,9 @@ function render() {
   $('#nav-count').textContent = todos.length - done;
   $('#filter-count').textContent = todos.length;
   $('#all-topics').classList.toggle('active', selectedTopic === null);
-  $('#list-title').textContent = selectedTopic ? state.topics.find(t => t.id === selectedTopic)?.name || '나의 주제' : '나의 주제';
+  $('#list-title').textContent = selectedTopic ? workspaceTopics().find(t => t.id === selectedTopic)?.name || '나의 주제' : '나의 주제';
   $('#topic-nav').replaceChildren();
-  state.topics.forEach(topic => {
+  workspaceTopics().forEach(topic => {
     const button = element('button', 'topic-nav-item' + (selectedTopic === topic.id ? ' selected' : ''));
     const navEmoji = element('span', 'nav-emoji');
     navEmoji.append(emojiGraphic(topic.emoji || '📋'));
@@ -98,7 +113,7 @@ function render() {
   });
   const container = $('#topics');
   container.replaceChildren();
-  state.topics.filter(topic => !selectedTopic || topic.id === selectedTopic).forEach(topic => {
+  workspaceTopics().filter(topic => !selectedTopic || topic.id === selectedTopic).forEach(topic => {
     const visible = TaskStore.visibleTodos(topic, filter, query);
     if ((query || filter !== 'all') && !visible.length) return;
     const details = element('details', 'topic');
@@ -121,7 +136,7 @@ function render() {
     deleteTopic.onclick = event => {
       event.preventDefault();
       confirmDelete(`“${topic.name}” 주제와 그 안의 할 일 ${topic.todos.length}개를 삭제합니다. 삭제 후 되돌릴 수 없습니다.`, () => {
-        TaskStore.deleteTopic(state, topic.id);
+        TaskStore.deleteTopic(currentWorkspace(), topic.id);
         if (selectedTopic === topic.id) selectedTopic = null;
       });
     };
@@ -155,7 +170,7 @@ function render() {
       const deleteTodo = element('button', 'delete-todo delete-action', '삭제');
       deleteTodo.setAttribute('aria-label', todo.title + ' 삭제');
       deleteTodo.onclick = () => confirmDelete(`“${todo.title}” 할 일을 삭제합니다. 삭제 후 되돌릴 수 없습니다.`, () => {
-        const currentTopic = state.topics.find(item => item.id === topic.id);
+        const currentTopic = workspaceTopics().find(item => item.id === topic.id);
         if (!currentTopic) throw new Error('주제를 찾을 수 없습니다.');
         TaskStore.deleteTodo(currentTopic, todo.id);
       });
@@ -194,6 +209,59 @@ function updateFilters() {
     button.setAttribute('aria-pressed', String(button.dataset.filter === filter));
   });
 }
+function resetWorkspaceView() {
+  selectedTopic = null; filter = 'all'; query = ''; $('#search').value = ''; updateFilters();
+}
+function renderWorkspaces() {
+  const current = currentWorkspace(), select = $('#workspace-select');
+  select.replaceChildren();
+  for (const workspace of TaskStore.workspaces(state)) {
+    const option = element('option', '', workspace.name); option.value = workspace.id; select.append(option);
+  }
+  if (!current) { const option = element('option', '', '워크스페이스를 만들어주세요'); option.value = ''; select.append(option); }
+  select.value = current?.id || ''; select.disabled = !current;
+  $('#workspace-edit').disabled = !current;
+  $('#workspace-emoji').replaceChildren();
+  if (current) $('#workspace-emoji').append(emojiGraphic(current.emoji));
+  $('#workspace-current-name').textContent = current?.name || '새 공간';
+  $('#workspace-current-name').title = current?.name || '';
+}
+function renderWorkspaceEmojis() {
+  const picker = $('#workspace-emoji-picker'); picker.replaceChildren();
+  for (const emoji of TaskStore.EMOJIS) {
+    const button = element('button', 'emoji-choice'); button.type = 'button'; button.append(emojiGraphic(emoji));
+    button.setAttribute('aria-label', emoji + ' 워크스페이스 이모티콘');
+    button.setAttribute('aria-pressed', String(emoji === workspaceEmoji));
+    button.onclick = () => { workspaceEmoji = emoji; renderWorkspaceEmojis(); picker.querySelector('[aria-pressed=true]').focus(); };
+    picker.append(button);
+  }
+}
+function openWorkspaceDialog(workspace = null) {
+  editingWorkspace = workspace?.id || null; workspaceEmoji = workspace?.emoji || '📋';
+  $('#workspace-dialog-title').textContent = workspace ? '워크스페이스 수정' : '새 워크스페이스';
+  $('#workspace-name').value = workspace?.name || ''; $('#workspace-delete').hidden = !workspace;
+  renderWorkspaceEmojis(); $('#workspace-dialog').showModal(); $('#workspace-name').focus();
+}
+$('#workspace-add').onclick = () => openWorkspaceDialog();
+$('#workspace-edit').onclick = () => openWorkspaceDialog(currentWorkspace());
+$('#workspace-select').onchange = event => { selectedWorkspace = event.target.value; resetWorkspaceView(); render(); };
+['#workspace-close', '#workspace-cancel'].forEach(selector => { $(selector).onclick = () => $('#workspace-dialog').close(); });
+$('#workspace-form').onsubmit = event => {
+  event.preventDefault();
+  try {
+    const workspace = editingWorkspace ? TaskStore.editWorkspace(state, editingWorkspace, $('#workspace-name').value, workspaceEmoji) : TaskStore.addWorkspace(state, $('#workspace-name').value, workspaceEmoji);
+    selectedWorkspace = workspace.id; resetWorkspaceView(); persist(); render(); $('#workspace-dialog').close(); notify('워크스페이스를 저장했어요.');
+  } catch (error) { notify(error.message); }
+};
+$('#workspace-delete').onclick = () => {
+  const workspace = TaskStore.workspaces(state).find(item => item.id === editingWorkspace);
+  if (!workspace) { notify('워크스페이스를 찾을 수 없습니다.'); return; }
+  const id = workspace.id, count = workspace.topics.flatMap(topic => topic.todos).length;
+  $('#workspace-dialog').close();
+  confirmDelete(`“${workspace.name}” 워크스페이스와 주제 ${workspace.topics.length}개, 할 일 ${count}개를 삭제합니다. 삭제 후 되돌릴 수 없습니다.`, () => {
+    TaskStore.deleteWorkspace(state, id); resetWorkspaceView();
+  });
+};
 $('#today').textContent = new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }).format(new Date());
 ['#sidebar-add', '#bottom-add'].forEach(selector => { $(selector).onclick = () => openTopicDialog(); });
 ['#close-dialog', '#cancel-dialog'].forEach(selector => { $(selector).onclick = () => $('#topic-dialog').close(); });
@@ -203,11 +271,11 @@ $('#topic-form').onsubmit = event => {
   try {
     if (!name || name.length > 60) throw new Error('주제 이름을 입력해주세요.');
     if (editingTopic) {
-      const topic = state.topics.find(item => item.id === editingTopic.id);
+      const topic = workspaceTopics().find(item => item.id === editingTopic.id);
       if (!topic) throw new Error('주제를 찾을 수 없습니다.');
       topic.name = name; topic.emoji = selectedEmoji;
     }
-    else { const topic = TaskStore.addTopic(state, name, selectedEmoji); selectedTopic = null; topic.open = true; }
+    else { const topic = TaskStore.addTopic(currentWorkspace(), name, selectedEmoji); selectedTopic = null; topic.open = true; }
     query = ''; filter = 'all'; $('#search').value = ''; updateFilters(); persist(); render(); $('#topic-dialog').close(); notify('주제를 저장했어요.');
   } catch (error) { notify(error.message); }
 };
@@ -288,10 +356,12 @@ $('#import-local').onclick = () => {
   let local;
   try { local = TaskStore.load(localStorage); }
   catch { notify('기존 브라우저 목록을 읽을 수 없습니다.'); return; }
-  if (!local.topics.length) { notify('가져올 주제가 없습니다.'); return; }
-  if (!window.confirm(`이 브라우저의 주제 ${local.topics.length}개를 계정 목록에 추가할까요? 기존 목록은 유지되며, 다시 가져오면 중복으로 추가됩니다.`)) return;
-  for (const topic of local.topics) {
-    state.topics.push({...topic, id: crypto.randomUUID(), todos: topic.todos.map(todo => ({...todo, id: crypto.randomUUID()}))});
+  const importedTopics = TaskStore.workspaces(local).flatMap(workspace => workspace.topics);
+  if (!currentWorkspace()) { notify('가져올 워크스페이스를 먼저 만들어주세요.'); return; }
+  if (!importedTopics.length) { notify('가져올 주제가 없습니다.'); return; }
+  if (!window.confirm(`이 브라우저의 주제 ${importedTopics.length}개를 계정 목록에 추가할까요? 기존 목록은 유지되며, 다시 가져오면 중복으로 추가됩니다.`)) return;
+  for (const topic of importedTopics) {
+    workspaceTopics().push({...topic, id: crypto.randomUUID(), todos: topic.todos.map(todo => ({...todo, id: crypto.randomUUID()}))});
   }
   persist(); selectedTopic = null; render(); $('#account-dialog').close(); notify('목록을 추가했어요. 저장 상태를 확인해주세요.');
 };
