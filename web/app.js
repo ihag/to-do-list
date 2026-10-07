@@ -1,6 +1,7 @@
 'use strict';
 const $ = selector => document.querySelector(selector);
 let state, storageReady = true, filter = 'all', query = '', selectedTopic = null, editingTopic = null, selectedEmoji = '📋', toastTimer;
+const topicResizeObserver = new ResizeObserver(layoutTopics);
 let sync, signupMode = false, selectedWorkspace = 'default', editingWorkspace = null, workspaceEmoji = '📋', selectionAccount = null;
 function currentWorkspace() {
   const key = 'taskflow.selection.' + (sync?.user?.id || 'guest');
@@ -87,6 +88,17 @@ function confirmDelete(description, action) {
   };
   dialog.showModal();
 }
+function layoutTopics() {
+  const container = $('#topics'), cards = [...container.querySelectorAll('.topic')];
+  const columns = getComputedStyle(container).gridTemplateColumns.split(' ').length;
+  const masonry = columns > 1 && cards.length > 0;
+  container.classList.toggle('masonry', masonry);
+  for (const card of cards) {
+    if (masonry) card.style.gridRowEnd = 'span ' + Math.ceil(card.getBoundingClientRect().height + 18);
+    else card.style.removeProperty('grid-row-end');
+  }
+}
+window.addEventListener('resize', layoutTopics);
 function render() {
   renderWorkspaces();
   const todos = workspaceTopics().flatMap(topic => topic.todos);
@@ -111,7 +123,7 @@ function render() {
     $('#topic-nav').append(button);
   });
   const container = $('#topics');
-  container.replaceChildren();
+  topicResizeObserver.disconnect(); container.replaceChildren();
   workspaceTopics().filter(topic => !selectedTopic || topic.id === selectedTopic).forEach(topic => {
     const visible = TaskStore.visibleTodos(topic, filter, query);
     if ((query || filter !== 'all') && !visible.length) return;
@@ -188,13 +200,14 @@ function render() {
       } catch (error) { notify(error.message); }
     };
     details.id = 'topic-' + topic.id;
-    list.append(form); details.append(summary, list); container.append(details);
+    list.append(form); details.append(summary, list); container.append(details); topicResizeObserver.observe(details);
     details.addEventListener('toggle', () => {
       if (!details.isConnected || query || filter !== 'all' || topic.open === details.open) return;
-      topic.open = details.open; persist();
+      topic.open = details.open; persist(); layoutTopics();
     });
   });
   if (!container.childElementCount) container.append(element('div', 'empty', query || filter !== 'all' ? '조건에 맞는 할 일이 없어요.' : '새로운 주제를 만들고 나의 할 일을 시작해보세요.'));
+  layoutTopics();
 }
 function localDate() {
   const date = new Date();

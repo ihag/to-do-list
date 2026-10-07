@@ -60,3 +60,5 @@
 .app-header{position:sticky;top:0;z-index:20}.topic summary>.chevron{display:none}.topic-actions{gap:4px;align-items:center}.topic-actions .chevron{display:grid;place-items:center;width:28px;height:28px;flex:none;transform:none}.topic-actions .chevron svg{width:16px;height:16px;fill:none;stroke:#6899c9;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.topic[open] .topic-actions .chevron{transform:rotate(180deg)}.topic-actions .edit-topic{display:grid;place-items:center;width:28px;height:28px;padding:4px}.edit-topic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}#topic-delete{font-size:12px;line-height:18px;padding:6px}.workspace-dialog-actions>.dialog-actions{margin-left:auto}
 
 .todo-row .todo-edit-input{appearance:none;border:1px solid #2878ef;border-radius:6px;padding:6px 8px;background:white;color:inherit;outline:none;box-shadow:none}.todo-row .todo-edit-input:focus,.todo-row .todo-edit-input:focus-visible{border-color:#2878ef;outline:none;box-shadow:none}
+
+#topics.masonry{grid-auto-rows:1px;row-gap:0;grid-auto-flow:row dense;column-gap:18px}
