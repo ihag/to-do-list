@@ -62,15 +62,42 @@ class WorkspaceTopic(BaseModel):
         return value
 
 
+class NamedWorkspace(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(min_length=1, max_length=64)
+    name: str = Field(min_length=1, max_length=60)
+    emoji: str
+    topics: list[WorkspaceTopic] = Field(max_length=100)
+
+    @field_validator("name")
+    @classmethod
+    def valid_name(cls, value):
+        return WorkspaceTopic.valid_name(value)
+
+    @field_validator("emoji")
+    @classmethod
+    def valid_emoji(cls, value):
+        return WorkspaceTopic.valid_emoji(value)
+
+
 class WorkspaceState(BaseModel):
     model_config = ConfigDict(extra="forbid")
     version: int = Field(strict=True, ge=1, le=1)
     topics: list[WorkspaceTopic] = Field(max_length=100)
 
+    workspaces: Optional[list[NamedWorkspace]] = Field(default=None, max_length=50)
+
     @model_validator(mode="after")
     def unique_ids_and_size(self):
-        ids = [topic.id for topic in self.topics]
-        ids.extend(todo.id for topic in self.topics for todo in topic.todos)
+        if self.workspaces is not None and self.topics:
+            raise ValueError("Legacy topics must be empty when workspaces are present")
+        topics = list(self.topics)
+        ids = []
+        for workspace in self.workspaces or []:
+            ids.append(workspace.id)
+            topics.extend(workspace.topics)
+        ids.extend(topic.id for topic in topics)
+        ids.extend(todo.id for topic in topics for todo in topic.todos)
         if len(ids) != len(set(ids)):
             raise ValueError("IDs must be unique")
         if len(self.model_dump_json().encode()) > 1_000_000:

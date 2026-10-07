@@ -86,3 +86,57 @@ def test_cors_allows_pages_and_rejects_unknown_origin(raw_client):
     assert response.headers["access-control-allow-origin"] == headers["Origin"]
     headers["Origin"] = "https://unknown.example"
     assert raw_client.options("/workspaces/current", headers=headers).status_code == 400
+
+
+def multiple_workspaces():
+    return {
+        "version": 1,
+        "topics": [],
+        "workspaces": [
+            {"id": "default", "name": "업무", "emoji": "💼", "topics": workspace()["topics"]},
+            {"id": "personal", "name": "개인", "emoji": "🌿", "topics": []},
+        ],
+    }
+
+
+def test_multiple_workspaces_round_trip_delete_and_isolation(raw_client, register_user):
+    _, headers = register_user("spaces_alice")
+    _, other = register_user("spaces_bob")
+    state = multiple_workspaces()
+    saved = raw_client.put("/workspaces/current", headers=headers, json={"revision": 0, "state": state})
+    assert saved.status_code == 200
+    assert saved.json()["state"] == state
+    assert raw_client.get("/workspaces/current", headers=headers).json()["state"] == state
+    assert "workspaces" not in raw_client.get("/workspaces/current", headers=other).json()["state"]
+    state["workspaces"][1]["name"] = "개인 프로젝트"
+    state["workspaces"][1]["emoji"] = "🎯"
+    state["workspaces"].pop(0)
+    assert raw_client.put("/workspaces/current", headers=headers, json={"revision": 1, "state": state}).json()["state"] == state
+    state["workspaces"] = []
+    assert raw_client.put("/workspaces/current", headers=headers, json={"revision": 2, "state": state}).status_code == 200
+    assert raw_client.get("/workspaces/current", headers=headers).json()["state"] == state
+
+
+@pytest.mark.parametrize("invalid", ["blank", "long", "emoji", "duplicate-space", "duplicate-topic", "mixed-legacy", "too-many"])
+def test_invalid_multiple_workspaces_preserves_data(raw_client, register_user, invalid):
+    _, headers = register_user()
+    state = multiple_workspaces()
+    assert raw_client.put("/workspaces/current", headers=headers, json={"revision": 0, "state": state}).status_code == 200
+    broken = deepcopy(state)
+    spaces = broken["workspaces"]
+    if invalid == "blank":
+        spaces[0]["name"] = " "
+    elif invalid == "long":
+        spaces[0]["name"] = "x" * 61
+    elif invalid == "emoji":
+        spaces[0]["emoji"] = "x"
+    elif invalid == "duplicate-space":
+        spaces[1]["id"] = spaces[0]["id"]
+    elif invalid == "duplicate-topic":
+        spaces[1]["topics"] = deepcopy(spaces[0]["topics"])
+    elif invalid == "mixed-legacy":
+        broken["topics"] = workspace()["topics"]
+    elif invalid == "too-many":
+        broken["workspaces"] = [{"id": str(i), "name": "공간", "emoji": "📋", "topics": []} for i in range(51)]
+    assert raw_client.put("/workspaces/current", headers=headers, json={"revision": 1, "state": broken}).status_code == 422
+    assert raw_client.get("/workspaces/current", headers=headers).json()["state"] == state

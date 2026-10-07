@@ -27,7 +27,7 @@ final class EmojiQA: NSObject, WKNavigationDelegate {
     }
     func fail(_ message:String) { print("WebKit QA failed: " + message); exit(1) }
     func testNext() {
-        if index == sizes.count { print("WebKit QA passed: all 16 emoji images centered at 15 viewport sizes, including narrow screens and landscape. URL: " + url.absoluteString); exit(0) }
+        if index == sizes.count { print("WebKit QA passed: all 16 emoji images centered at 15 viewport sizes, including workspace selector, long names, workspace emoji picker and dialog, narrow screens and landscape. URL: " + url.absoluteString); exit(0) }
         let size = sizes[index]
         window.setContentSize(NSSize(width:size.0,height:size.1))
         web.frame = NSRect(x:0,y:0,width:size.0,height:size.1)
@@ -37,6 +37,7 @@ final class EmojiQA: NSObject, WKNavigationDelegate {
         state = TaskStore.initialState();state.topics[0].name='모바일에서 긴 주제 제목과 이모티콘 정렬 확인';render();
         const logo=document.querySelector('.brand-icon'),vector=logo.querySelector('svg'),l=logo.getBoundingClientRect(),v=vector.getBoundingClientRect();if(vector.getAttribute('viewBox')!=='0 0 24 24'||logo.textContent.trim()||Math.abs(v.left+v.width/2-l.left-l.width/2)>.5||Math.abs(v.top+v.height/2-l.top-l.height/2)>.5)throw new Error('Logo vector alignment');
         if(document.documentElement.scrollWidth>innerWidth) throw new Error('Page overflow');
+        const box=document.querySelector('.workspace-selector').getBoundingClientRect(),aside=document.querySelector('.sidebar').getBoundingClientRect();if(box.width<=0||box.left<aside.left||box.right>aside.right||document.querySelector('#workspace-select').getBoundingClientRect().width<60)throw new Error('Workspace selector bounds');const before=box.top;const added=TaskStore.addWorkspace(state,'가'.repeat(60),'🎯');selectedWorkspace=added.id;render();if(Math.abs(document.querySelector('.workspace-selector').getBoundingClientRect().top-before)>.5||document.documentElement.scrollWidth>innerWidth)throw new Error('Workspace selector moved');state=TaskStore.initialState();selectedWorkspace='default';render();
         const cards=[...document.querySelectorAll('.stats>div')].map(card=>card.getBoundingClientRect());
         if(cards.length!==4||cards.some(card=>Math.abs(card.top-cards[0].top)>1))throw new Error('Stats must stay in one row');
         if(parseFloat(getComputedStyle(document.querySelector('#today')).fontSize)<20)throw new Error('Date too small');
@@ -64,6 +65,12 @@ final class EmojiQA: NSObject, WKNavigationDelegate {
         for(const button of document.querySelectorAll('.emoji-choice'))await measure(button);
         const dialog=document.querySelector('#topic-dialog');if(dialog.scrollWidth>dialog.clientWidth)throw new Error('Dialog overflow');
         document.querySelector('#close-dialog').click();
+        await measure(document.querySelector('#workspace-emoji'));
+        document.querySelector('#workspace-edit').click();
+        for(const button of document.querySelectorAll('#workspace-emoji-picker .emoji-choice'))await measure(button);
+        const workspaceDialog=document.querySelector('#workspace-dialog'),bounds=workspaceDialog.getBoundingClientRect();
+        if(workspaceDialog.scrollWidth>workspaceDialog.clientWidth||bounds.left<0||bounds.right>innerWidth||bounds.height>innerHeight)throw new Error('Workspace dialog overflow');
+        document.querySelector('#workspace-close').click();
         return {width:innerWidth,height:innerHeight,count:TaskStore.EMOJIS.length};
         """
         web.callAsyncJavaScript(script,arguments:[:],in:nil,in:.page) { result in

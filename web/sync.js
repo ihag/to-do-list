@@ -4,7 +4,7 @@
   const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   // 서로 다른 항목의 변경은 유지하고, 같은 항목의 충돌은 사용자 선택 후 반영한다.
   function mergeWorkspace(base, local, remote) {
-    function mergeRows(before, mine, theirs, topic) {
+    function mergeRows(before, mine, theirs, level) {
       const a = new Map(before.map(row => [row.id, row]));
       const b = new Map(mine.map(row => [row.id, row]));
       const c = new Map(theirs.map(row => [row.id, row]));
@@ -16,15 +16,18 @@
         if (!other) { if (!old || !equal(own, old)) rows.push(clone(own)); continue; }
         const result = clone(other);
         for (const key of Object.keys(own)) {
-          if (key === 'todos' && topic) continue;
+          if (key === (level === 2 ? 'topics' : 'todos') && level) continue;
           if (!old || !equal(own[key], old[key])) result[key] = clone(own[key]);
         }
-        if (topic) result.todos = mergeRows(old?.todos || [], own.todos, other.todos, false);
+        if (level) { const key = level === 2 ? 'topics' : 'todos'; result[key] = mergeRows(old?.[key] || [], own[key], other[key], level - 1); }
         rows.push(result);
       }
       return rows;
     }
-    return {version: 1, topics: mergeRows(base.topics, local.topics, remote.topics, true)};
+    if (base.workspaces || local.workspaces || remote.workspaces) {
+      return {version: 1, topics: [], workspaces: mergeRows(root.TaskStore.workspaces(base), root.TaskStore.workspaces(local), root.TaskStore.workspaces(remote), 2)};
+    }
+    return {version: 1, topics: mergeRows(base.topics, local.topics, remote.topics, 1)};
   }
   class SyncClient {
     constructor(options) {
