@@ -1,6 +1,7 @@
 'use strict';
 const $ = selector => document.querySelector(selector);
 let state, storageReady = true, filter = 'all', query = '', selectedTopic = null, editingTopic = null, selectedEmoji = '📋', toastTimer;
+let sync, signupMode = false;
 function notify(message) {
   $('#toast').textContent = message;
   $('#toast').hidden = false;
@@ -15,6 +16,7 @@ catch (error) {
   notify('저장 데이터를 읽을 수 없습니다. 기존 데이터는 유지되며 변경 사항은 저장되지 않습니다.');
 }
 function persist() {
+  if (sync?.user) { sync.change(state); return; }
   if (!storageReady) { notify('저장할 수 없는 상태입니다. 브라우저 저장 설정을 확인해주세요.'); return; }
   try { TaskStore.save(localStorage, state); $('#save-status').textContent = '이 브라우저에 저장됨'; }
   catch (error) { $('#save-status').textContent = '저장 실패 · 변경 사항 미저장'; notify('저장하지 못했습니다. 브라우저 저장 공간과 설정을 확인해주세요.'); }
@@ -215,9 +217,103 @@ document.addEventListener('keydown', event => {
   if (event.key === '/' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName) && !document.querySelector('dialog[open]')) { event.preventDefault(); $('#search').focus(); }
 });
 window.addEventListener('storage', event => {
+  if (sync?.user) return;
   if (event.key !== TaskStore.KEY) return;
   try { state = TaskStore.load(localStorage); selectedTopic = null; render(); notify('다른 탭의 변경 사항을 반영했어요.'); }
   catch (error) { storageReady = false; $('#save-status').textContent = '저장 데이터를 확인해주세요'; notify('다른 탭의 저장 데이터를 읽을 수 없습니다.'); }
 });
 render();
 if (storageReady) persist();
+
+function applyCloudState(next) {
+  state = next; selectedTopic = null;
+  // 열린 편집창의 입력은 유지하고 현재 목록만 갱신한다.
+  render();
+}
+function updateAccount(user) {
+  $('#account-button').textContent = user ? (sync.expired ? '다시 로그인' : '나의 계정') : '로그인';
+  $('#sync-now').hidden = !user;
+  $('#profile-name').textContent = user ? user.username : '나의 워크스페이스';
+  $('#profile-detail').textContent = user ? '개인 공간 · 기기 간 동기화' : '개인 공간 · 브라우저 저장';
+}
+sync = new TaskSync.SyncClient({
+  base: TaskFlowConfig.apiBase,
+  storage: localStorage, session: sessionStorage,
+  onState: applyCloudState,
+  onStatus: message => { $('#save-status').textContent = message; },
+  onAccount: updateAccount,
+  onConflict: conflict => { $('#sync-conflict').hidden = !conflict; }
+});
+function openAuth() {
+  signupMode = false; updateAuthMode(); $('#auth-dialog').showModal(); $('#auth-username').focus();
+}
+function updateAuthMode() {
+  $('#auth-title').textContent = signupMode ? '회원가입' : '로그인';
+  $('#auth-submit').textContent = signupMode ? '가입하고 시작하기' : '로그인';
+  $('#auth-switch').textContent = signupMode ? '로그인으로 돌아가기' : '회원가입';
+  $('#auth-password').autocomplete = signupMode ? 'new-password' : 'current-password';
+  $('#auth-error').hidden = true;
+}
+$('#account-button').onclick = () => {
+  if (!sync.user || sync.expired) { openAuth(); return; }
+  $('#account-name').textContent = sync.user.username + '님으로 로그인됨';
+  $('#account-dialog').showModal();
+};
+$('#close-auth').onclick = () => $('#auth-dialog').close();
+$('#auth-switch').onclick = () => { signupMode = !signupMode; updateAuthMode(); };
+$('#auth-form').onsubmit = async event => {
+  event.preventDefault();
+  $('#auth-error').hidden = true;
+  const buttons = $('#auth-form').querySelectorAll('button'); buttons.forEach(button => { button.disabled = true; });
+  const fields = $('#auth-form').querySelectorAll('input'); fields.forEach(input => { input.readOnly = true; });
+  try {
+    await sync.authenticate($('#auth-username').value.trim().toLowerCase(), $('#auth-password').value, signupMode);
+    $('#auth-password').value = ''; $('#auth-dialog').close(); notify('로그인했어요. 같은 계정으로 다른 기기에서도 이어서 사용하세요.');
+  } catch (error) { $('#auth-error').textContent = error.message || '연결을 확인하고 다시 시도해주세요.'; $('#auth-error').hidden = false; }
+  finally { buttons.forEach(button => { button.disabled = false; }); fields.forEach(input => { input.readOnly = false; }); }
+};
+['#close-account', '#account-done'].forEach(selector => { $(selector).onclick = () => $('#account-dialog').close(); });
+$('#logout-button').onclick = async () => {
+  if (sync.dirty) await sync.flush();
+  if (sync.dirty && !sync.cached) { notify('변경을 기기에 보관하지 못했어요. 서버에 저장한 후 로그아웃해주세요.'); return; }
+  if (sync.dirty && !window.confirm('아직 서버에 저장되지 않은 변경이 있어요. 이 기기에 보관하고 로그아웃할까요? 같은 계정으로 다시 로그인하면 복구할 수 있습니다.')) return;
+  sync.logout(); $('#account-dialog').close();
+  try { state = TaskStore.load(localStorage); storageReady = true; }
+  catch { state = {version: 1, topics: []}; storageReady = false; }
+  selectedTopic = null; render(); $('#save-status').textContent = storageReady ? '이 브라우저에 저장됨' : '브라우저 저장 확인 필요';
+  notify('로그아웃했어요. 브라우저 목록으로 돌아왔습니다.');
+};
+$('#import-local').onclick = () => {
+  let local;
+  try { local = TaskStore.load(localStorage); }
+  catch { notify('기존 브라우저 목록을 읽을 수 없습니다.'); return; }
+  if (!local.topics.length) { notify('가져올 주제가 없습니다.'); return; }
+  if (!window.confirm(`이 브라우저의 주제 ${local.topics.length}개를 계정 목록에 추가할까요? 기존 목록은 유지되며, 다시 가져오면 중복으로 추가됩니다.`)) return;
+  for (const topic of local.topics) {
+    state.topics.push({...topic, id: crypto.randomUUID(), todos: topic.todos.map(todo => ({...todo, id: crypto.randomUUID()}))});
+  }
+  persist(); selectedTopic = null; render(); $('#account-dialog').close(); notify('목록을 추가했어요. 저장 상태를 확인해주세요.');
+};
+$('#sync-now').onclick = async () => {
+  if (document.querySelector('.todo-row input[type=text]')) { notify('편집 중인 할 일을 먼저 저장해주세요.'); return; }
+  $('#sync-now').disabled = true; await sync.refresh(); $('#sync-now').disabled = false;
+};
+$('#merge-changes').onclick = () => sync.resolve(true);
+$('#use-remote').onclick = () => {
+  if (window.confirm('이 기기의 저장 대기 중 변경을 취소하고 다른 기기 목록을 사용할까요?')) sync.resolve(false);
+};
+const canRefresh = () => !document.hidden && !document.querySelector('dialog[open], .todo-row input[type=text]');
+setInterval(() => { if (canRefresh()) sync.refresh(); }, 30000);
+window.addEventListener('focus', () => { if (canRefresh()) sync.refresh(); });
+window.addEventListener('online', () => { if (sync.dirty) sync.flush(); else if (canRefresh()) sync.refresh(); });
+document.addEventListener('visibilitychange', () => { if (canRefresh()) sync.refresh(); });
+window.addEventListener('beforeunload', event => { if (sync.dirty) { event.preventDefault(); event.returnValue = ''; } });
+// 복원 중에는 브라우저 목록을 편집해 계정 목록과 섞이지 않도록 한다.
+let savedSession;
+try { savedSession = sessionStorage.getItem('taskflow.session'); } catch { /* 로그인 없이 계속 사용한다. */ }
+if (savedSession) {
+  $('.content').inert = true; $('.sidebar').inert = true; $('#account-button').disabled = true;
+  $('#save-status').textContent = '로그인 복원 중…';
+  sync.restore().catch(() => { $('#save-status').textContent = '로그인 복원 실패 · 다시 로그인해주세요'; notify('서버 목록을 불러오지 못했어요. 현재는 브라우저 목록입니다. 다시 로그인해주세요.'); })
+    .finally(() => { $('.content').inert = false; $('.sidebar').inert = false; $('#account-button').disabled = false; });
+}

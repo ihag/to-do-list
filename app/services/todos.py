@@ -10,10 +10,10 @@ def add_todo(connection: sqlite3.Connection, user_id: int, body: TodoCreate) -> 
         raise ValueError("Title is required")
     with connection:
         cursor = connection.execute(
-            "INSERT INTO todos (title, due, user_id) VALUES (?, ?, ?)",
+            "INSERT INTO todos (title, due, user_id) VALUES (?, ?, ?) RETURNING id",
             (title, body.due.isoformat() if body.due else None, user_id),
         )
-        todo = Todo(id=cursor.lastrowid, title=title, due=body.due)
+        todo = Todo(id=cursor.fetchone()["id"], title=title, due=body.due)
     return todo
 
 

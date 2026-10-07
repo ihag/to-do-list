@@ -4,10 +4,11 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import Settings, load_settings
-from app.db import DB_PATH, DatabasePath, initialize_database
-from app.routers import auth, todos
+from app.db import DB_PATH, DatabasePath, initialize_database, configured_database
+from app.routers import auth, todos, workspaces
 
 
 @asynccontextmanager
@@ -24,8 +25,19 @@ def create_app(
     application = FastAPI(title="TaskFlow API", lifespan=lifespan)
     application.state.database_path = database_path
     application.state.settings = settings
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "https://ihag.github.io",
+            "http://127.0.0.1:8080",
+            "http://localhost:8080",
+        ],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+        allow_headers=["Authorization", "Content-Type"],
+    )
     application.include_router(auth.router)
     application.include_router(todos.router)
+    application.include_router(workspaces.router)
     application.mount(
         "/",
         StaticFiles(directory=Path(__file__).resolve().parents[1] / "web", html=True),
@@ -34,4 +46,4 @@ def create_app(
     return application
 
 
-app = create_app()
+app = create_app(configured_database())

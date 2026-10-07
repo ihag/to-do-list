@@ -32,11 +32,16 @@ def test_workspace_behavior():
 
 def test_web_assets():
     html = (ROOT / "web" / "index.html").read_text()
-    for asset in ("styles.css", "store.js", "app.js"):
+    for asset in ("styles.css", "store.js", "sync.js", "config.js", "app.js"):
         assert asset in html
         assert (ROOT / "web" / asset).is_file()
     assert 'lang="ko"' in html
     assert "line-through" in (ROOT / "web" / "styles.css").read_text()
+
+
+def test_sync_behavior():
+    result = subprocess.run(["node", str(ROOT / "tests" / "web_sync_test.cjs")], capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 @pytest.mark.parametrize(
