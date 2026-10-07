@@ -64,21 +64,36 @@ API가 바뀌면 서버 배포도 갱신해야 합니다. Vercel Git 연결은 �
 
 배포 주소: https://ihag.github.io/to-do-list/
 
-소스는 `feat/taskflow-pages`, 웹 배포 파일은 `gh-pages` 브랜치에 있습니다.
+GitHub 기본 브랜치는 `feat/taskflow-pages`, 현재 개발 브랜치는 `feat/taskflow-web`,
+웹 배포 파일은 `gh-pages` 브랜치에 있습니다. 각 브랜치는 역할이 다릅니다.
 전체 pytest와 실제 Chrome 검증을 통과한 `web/` 파일만 배포했습니다.
 `.env`, SQLite DB, 백엔드 소스는 웹 배포 파일에 포함되지 않습니다.
 
 저장소 Settings → Pages에서 **Deploy from a branch**, `gh-pages`, `/ (root)`를
-사용합니다. 현재 Git 인증에 workflow 권한이 없어 브랜치 배포 방식을 사용합니다.
-main에는 직접 커밋하지 않았습니다.
+사용합니다. `.github/workflows/pages.yml`은 두 소스 브랜치와 PR의 테스트만 실행합니다.
+Pages 환경 보호 규칙은 그대로 유지하며, 검증한 정적 파일을 `gh-pages`로 배포합니다.
 
 후속 수정은 기능 브랜치에서 진행하고 전체 pytest를 실행한 후, 변경된 `web/`
 파일을 `gh-pages` 루트에 반영합니다. gh-pages에 push하면 GitHub Pages가 다시 배포합니다.
 
-`deployment/github-pages.yml`은 테스트 후 자동 배포를 위한 선택적 워크플로 템플릿입니다.
-workflow 권한이 있는 인증을 사용하게 되면 이를 `.github/workflows/pages.yml`에 복사하고,
-트리거의 기능 브랜치 이름을 조정한 뒤 Pages Source를 GitHub Actions로 변경할 수 있습니다.
+GitHub Actions 방식으로 전환하려면 Pages Source와 환경의 허용 브랜치를 함께 검토해야 합니다.
+현재는 소스 브랜치에서 직접 Pages 배포 작업을 실행하지 않습니다.
 
+## 보안 확인
+
+- 비밀번호는 Argon2 해시로 저장하고 검증 오류 응답에는 원문 입력을 포함하지 않습니다.
+- JWT 서명·알고리즘·발급자·대상·만료·사용자 ID를 검증하며 소유자별 SQL 조건을 적용합니다.
+- 로그인 토큰과 개인 API 응답은 `Cache-Control: no-store`로 반환합니다.
+- 웹 화면은 외부 스크립트와 임의의 API 연결을 CSP로 제한하며, 사용자 입력은 텍스트로 렌더링합니다.
+- `.env`, DB, `.vercel` 인증 관련 파일과 테스트 산출물은 버전 관리·배포에서 제외합니다.
+- 자동 테스트와 격리된 임시 DB의 브라우저 검증은 실제 사용자의 데이터와 분리합니다.
+- 요청 본문은 1.1 MB로 제한하며, Python 3.12에서 검증한 기존 의존성 버전을 고정합니다.
+
+현재 로그인 시도에 대한 공유 저장소 기반 속도 제한과 MFA는 구현하지 않았습니다.
+이 점검은 기능·권한·응답·배포 파일에 대한 검증이며 모든 취약점의 부재를 보장하지 않습니다.
+
+개발과 운영은 Python 3.12를 사용합니다. 기존 Python 3.9 가상환경 대신 Python 3.12로
+별도 가상환경을 만들고 `python -m pip install -r requirements.txt`로 고정 버전을 설치하세요.
 프런트엔드 테스트도 `pytest`에 포함되어 있어 Node.js 22 이상이 필요합니다.
 `node tests/web_store_test.cjs`로 저장·완료·검색·검증 실패 케이스를 따로 실행할 수 있습니다.
 `node tests/web_sync_test.cjs`는 동시 수정, 저장 도중 추가 편집, 충돌 상태의 새로고침,

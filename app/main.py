@@ -5,10 +5,16 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 
 from app.config import Settings, load_settings
 from app.db import DB_PATH, DatabasePath, initialize_database, configured_database
 from app.routers import auth, todos, workspaces
+from app.security import (
+    RequestBodyLimitMiddleware,
+    security_headers,
+    validation_error_response,
+)
 
 
 @asynccontextmanager
@@ -25,6 +31,9 @@ def create_app(
     application = FastAPI(title="TaskFlow API", lifespan=lifespan)
     application.state.database_path = database_path
     application.state.settings = settings
+    application.add_middleware(RequestBodyLimitMiddleware)
+    application.add_exception_handler(RequestValidationError, validation_error_response)
+    application.middleware("http")(security_headers)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=[

@@ -12,4 +12,5 @@ todos.sqlite3-shm
 !.env.example
 node_modules/
 .codex/
+.vercel/
 artifacts/

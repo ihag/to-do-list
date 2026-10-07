@@ -10,9 +10,15 @@ const sizes = [[320,568],[360,800],[375,667],[390,844],[393,852],[412,915],[430,
   socket.addEventListener('message', event => {
     const message = JSON.parse(event.data);
     if (message.method === 'Runtime.exceptionThrown') errors.push(message.params);
+    if (message.method === 'Page.javascriptDialogOpening') call('Page.handleJavaScriptDialog',{accept:true}).catch(()=>{});
     if (message.id) {const item = pending.get(message.id); pending.delete(message.id); message.error ? item.reject(message.error) : item.resolve(message.result);}
   });
-  const call = (method,params={}) => new Promise((resolve,reject) => {const current=++id;pending.set(current,{resolve,reject});socket.send(JSON.stringify({id:current,method,params}));});
+  const call = (method,params={}) => new Promise((resolve,reject) => {
+    const current=++id;
+    const timer=setTimeout(()=>{pending.delete(current);reject(new Error(`${method} timed out: ${(params.expression||'').slice(0,160)}`));},30000);
+    pending.set(current,{resolve:value=>{clearTimeout(timer);resolve(value);},reject:error=>{clearTimeout(timer);reject(error);}});
+    socket.send(JSON.stringify({id:current,method,params}));
+  });
   const evaluate = async expression => {
     const result = await call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});
     if (result.exceptionDetails) throw new Error(JSON.stringify(result.exceptionDetails));
@@ -20,7 +26,8 @@ const sizes = [[320,568],[360,800],[375,667],[390,844],[393,852],[412,915],[430,
   };
   const checkArtwork = async (selector, label) => {
     const results = await evaluate(`(async()=>{const buttons=[...document.querySelectorAll(${JSON.stringify(selector)})];return await Promise.all(buttons.map(async button=>{
-      const image=button.querySelector('.emoji-image');if(!image)throw new Error('Missing image');await image.decode();
+      const image=button.querySelector('.emoji-image');if(!image)throw new Error('Missing image');
+      await new Promise((resolve,reject)=>{const deadline=Date.now()+5000;const check=()=>image.complete&&image.naturalWidth?resolve():Date.now()>deadline?reject(new Error('Emoji image did not load: '+image.src)):setTimeout(check,20);check();});
       const b=button.getBoundingClientRect(),g=image.getBoundingClientRect();const canvas=document.createElement('canvas');canvas.width=canvas.height=160;const context=canvas.getContext('2d');context.drawImage(image,0,0,160,160);
       const pixels=context.getImageData(0,0,160,160).data;let minX=160,minY=160,maxX=-1,maxY=-1;
       for(let y=0;y<160;y++)for(let x=0;x<160;x++)if(pixels[(y*160+x)*4+3]>32){minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);}
@@ -33,7 +40,8 @@ const sizes = [[320,568],[360,800],[375,667],[390,844],[393,852],[412,915],[430,
   await call('Network.setCacheDisabled',{cacheDisabled:true});
   await call('Page.navigate',{url:baseUrl});
   await evaluate(`new Promise((resolve,reject)=>{let attempts=0;const check=()=>location.href.startsWith(${JSON.stringify(baseUrl)})&&document.querySelector('.emoji-glyph')?resolve():++attempts>200?reject(new Error('Updated emoji page did not load')):setTimeout(check,50);check();})`);
-  await evaluate(`localStorage.clear(); location.reload()`);
+  await evaluate(`localStorage.clear()`);
+  await call('Page.reload');
   await new Promise(resolve => setTimeout(resolve,300));
   fs.mkdirSync('artifacts',{recursive:true});
   for (const [width,height] of sizes) {
@@ -47,7 +55,7 @@ const sizes = [[320,568],[360,800],[375,667],[390,844],[393,852],[412,915],[430,
       assert.equal(measure.padding,'0px');
       await checkArtwork('.topic-icon',`${width}x${height} ${emoji}`);
     }
-    await evaluate(`document.querySelector('.topic-icon').click()`);
+    await evaluate(`document.querySelector('.edit-topic').click()`);
     const choices = await evaluate(`Array.from(document.querySelectorAll('.emoji-choice')).map(button=>{const b=button.getBoundingClientRect(),g=button.querySelector('.emoji-glyph').getBoundingClientRect();return {emoji:button.textContent,dx:Math.abs(g.x+g.width/2-b.x-b.width/2),dy:Math.abs(g.y+g.height/2-b.y-b.height/2),inside:g.x>=b.x&&g.right<=b.right&&g.y>=b.y&&g.bottom<=b.bottom};})`);
     for (const measure of choices) assert.ok(measure.dx<0.6&&measure.dy<0.6&&measure.inside,`${width}x${height} picker: ${JSON.stringify(measure)}`);
     await checkArtwork('.emoji-choice',`${width}x${height} picker`);
@@ -57,11 +65,12 @@ const sizes = [[320,568],[360,800],[375,667],[390,844],[393,852],[412,915],[430,
       fs.writeFileSync(`artifacts/emoji-picker-${width}.png`,Buffer.from(capture.data,'base64'));
     }
     await evaluate(`document.querySelector('#close-dialog').click()`);
-    await evaluate(`document.querySelector('.topic-icon').click();[...document.querySelectorAll('.emoji-choice')].find(button=>button.textContent==='❤️').click();document.querySelector('#topic-form').requestSubmit()`);
+    await evaluate(`document.querySelector('.edit-topic').click();[...document.querySelectorAll('#emoji-picker .emoji-choice')].find(button=>button.textContent==='❤️').click();document.querySelector('#topic-form').requestSubmit()`);
     assert.equal(await evaluate(`document.querySelector('.topic-icon').textContent`),'❤️');
   }
   assert.equal(errors.length,0,JSON.stringify(errors));
-  await evaluate(`localStorage.clear();location.reload()`);
+  await evaluate(`localStorage.clear()`);
+  await call('Page.reload');
   socket.close();
   console.log(`Emoji layout passed at ${sizes.map(size=>size.join('x')).join(', ')}: actual rasterized artwork of all 16 emoji centered within 0.6px in topic buttons and picker; long titles, no horizontal overflow, selection works; zero runtime errors. URL: ${baseUrl}`);
 })().catch(error=>{console.error(error);process.exit(1);});

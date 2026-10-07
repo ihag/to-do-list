@@ -1,7 +1,7 @@
-name: Test and deploy TaskFlow
+name: Test TaskFlow
 on:
   push:
-    branches: [main, feat/taskflow-web]
+    branches: [feat/taskflow-pages, feat/taskflow-web]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -19,23 +19,4 @@ jobs:
           node-version: '22'
       - run: pip install -r requirements.txt
       - run: python -m pytest -q
-      - run: node --check web/app.js && node --check web/store.js
-  deploy:
-    if: github.event_name != 'pull_request'
-    needs: test
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: web
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - run: node --check web/app.js && node --check web/store.js && node --check web/sync.js

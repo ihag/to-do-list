@@ -1,0 +1,11 @@
+# 검증된 앱 파일만 배포하며 인증 정보·DB·테스트 산출물은 제외한다.
+*
+!app/
+!app/**
+!web/
+!web/**
+!requirements.txt
+!vercel.json
+!.python-version
+app/**/__pycache__/
+app/**/*.pyc

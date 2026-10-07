@@ -83,12 +83,11 @@ const url = process.env.TASKFLOW_QA_URL || 'http://127.0.0.1:8081/';
   // 새 공간의 빈 시작과 PC/휴대폰 간 공간별 목록 동기화를 검증한다.
   await desktop.evaluate(`document.querySelector('#workspace-add').click();document.querySelector('#workspace-name').value='동기화 개인 공간';document.querySelectorAll('#workspace-emoji-picker button')[2].click();document.querySelector('#workspace-form').requestSubmit()`);
   assert.equal(await desktop.evaluate(`workspaceTopics().length`),0);
-  const spaceId = await desktop.evaluate(`currentWorkspace().id`);
   await addTopic(desktop, '개인 공간 전용 주제');
   await desktop.wait(`!sync.dirty && !sync.busy`);
   await phone.evaluate(`await sync.refresh()`);
   assert.equal(await phone.evaluate(`workspaceTopics().length`),7);
-  await phone.evaluate(`document.querySelector('#workspace-select').value=${JSON.stringify(spaceId)};document.querySelector('#workspace-select').dispatchEvent(new Event('change'))`);
+  await phone.evaluate(`document.querySelector('#workspace-select').click();[...document.querySelectorAll('#workspace-menu [role=option]')].find(button=>button.textContent.includes('동기화 개인 공간')).click()`);
   assert.equal(await phone.evaluate(`document.querySelectorAll('.topic').length`),1);
   assert.equal(await phone.evaluate(`document.querySelector('.topic-title').textContent`),'개인 공간 전용 주제');
   await phone.evaluate(`document.querySelector('#workspace-edit').click();document.querySelector('#workspace-name').value='폰에서 이름 변경';document.querySelectorAll('#workspace-emoji-picker button')[4].click();document.querySelector('#workspace-form').requestSubmit()`);
