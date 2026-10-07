@@ -189,7 +189,10 @@ function render() {
       due.setAttribute('aria-label', due.value ? '할 일 기한 ' + due.value : '할 일 기한');
     };
     const button = element('button', '', '추가'); button.type = 'submit';
-    form.append(element('span', '', '＋'), input, calendar, button);
+    const addIcon = element('span', 'task-add-icon');
+    addIcon.setAttribute('aria-hidden', 'true');
+    addIcon.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></svg>';
+    form.append(addIcon, input, calendar, button);
     form.onsubmit = event => {
       event.preventDefault();
       try {
