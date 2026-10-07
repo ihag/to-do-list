@@ -101,7 +101,6 @@ function render() {
   $('#nav-count').textContent = todos.length - done;
   $('#filter-count').textContent = todos.length;
   $('#all-topics').classList.toggle('active', selectedTopic === null);
-  $('#list-title').textContent = selectedTopic ? workspaceTopics().find(t => t.id === selectedTopic)?.name || '나의 주제' : '나의 주제';
   $('#topic-nav').replaceChildren();
   workspaceTopics().forEach(topic => {
     const button = element('button', 'topic-nav-item' + (selectedTopic === topic.id ? ' selected' : ''));
@@ -180,8 +179,17 @@ function render() {
     const form = element('form', 'task-form');
     const input = element('input'); input.type = 'text'; input.placeholder = '새로운 할 일 추가하기'; input.required = true; input.maxLength = 200; input.setAttribute('aria-label', topic.name + '에 할 일 추가');
     const due = element('input'); due.type = 'date'; due.setAttribute('aria-label', '할 일 기한');
+    const calendar = element('label', 'calendar-control');
+    calendar.title = '기한 선택';
+    calendar.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="3"/><path d="M8 3v4M16 3v4M4 11h16"/></svg>';
+    due.title = '기한 선택'; calendar.append(due);
+    due.onchange = () => {
+      calendar.classList.toggle('has-date', !!due.value);
+      calendar.title = due.value ? '선택한 기한: ' + due.value : '기한 선택';
+      due.setAttribute('aria-label', due.value ? '할 일 기한 ' + due.value : '할 일 기한');
+    };
     const button = element('button', '', '추가'); button.type = 'submit';
-    form.append(element('span', '', '＋'), input, due, button);
+    form.append(element('span', '', '＋'), input, calendar, button);
     form.onsubmit = event => {
       event.preventDefault();
       try {
@@ -223,8 +231,6 @@ function renderWorkspaces() {
   $('#workspace-edit').disabled = !current;
   $('#workspace-emoji').replaceChildren();
   if (current) $('#workspace-emoji').append(emojiGraphic(current.emoji));
-  $('#workspace-current-name').textContent = current?.name || '새 공간';
-  $('#workspace-current-name').title = current?.name || '';
 }
 function renderWorkspaceEmojis() {
   const picker = $('#workspace-emoji-picker'); picker.replaceChildren();
