@@ -72,6 +72,7 @@ final class EmojiQA: NSObject, WKNavigationDelegate {
         const workspaceDialog=document.querySelector('#workspace-dialog'),bounds=workspaceDialog.getBoundingClientRect();
         if(workspaceDialog.scrollWidth>workspaceDialog.clientWidth||bounds.left<0||bounds.right>innerWidth||bounds.height>innerHeight)throw new Error('Workspace dialog overflow');
         document.querySelector('#workspace-close').click();
+        if(document.querySelector('#all-topics,#nav-count')||document.querySelector('#workspace-dialog p'))throw new Error('Removed workspace copy');for(const editing of [true,false]){openWorkspaceDialog(editing?currentWorkspace():null);for(const name of ['나의 할 일','가'.repeat(60)]){document.querySelector('#workspace-name').value=name;const d=document.querySelector('#workspace-dialog'),buttons=[document.querySelector('#workspace-delete'),document.querySelector('#workspace-cancel'),d.querySelector('button[type=submit]')].filter(e=>!e.hidden).map(e=>e.getBoundingClientRect()),center=buttons[0].top+buttons[0].height/2;if(buttons.some(r=>Math.abs(r.top+r.height/2-center)>.5)||d.scrollWidth>d.clientWidth)throw new Error('Workspace actions not centered');}document.querySelector('#workspace-close').click();}
         return {width:innerWidth,height:innerHeight,count:TaskStore.EMOJIS.length};
         """
         web.callAsyncJavaScript(script,arguments:[:],in:nil,in:.page) { result in

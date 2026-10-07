@@ -98,16 +98,15 @@ function render() {
   $('#overall-progress').style.width = percent + '%';
   $('.progress-track').setAttribute('aria-valuenow', String(percent));
   $('#progress-caption').textContent = percent === 100 ? '오늘의 할 일, 모두 해냈어요!' : done ? `${done}개의 작은 완료가 쌓였어요.` : '첫 번째 할 일을 시작해보세요.';
-  $('#nav-count').textContent = todos.length - done;
   $('#filter-count').textContent = todos.length;
-  $('#all-topics').classList.toggle('active', selectedTopic === null);
   $('#topic-nav').replaceChildren();
   workspaceTopics().forEach(topic => {
     const button = element('button', 'topic-nav-item' + (selectedTopic === topic.id ? ' selected' : ''));
     const navEmoji = element('span', 'nav-emoji');
     navEmoji.append(emojiGraphic(topic.emoji || '📋'));
     button.append(navEmoji, element('span', '', topic.name));
-    button.onclick = () => { selectedTopic = topic.id; render(); };
+    button.setAttribute('aria-pressed', String(selectedTopic === topic.id));
+    button.onclick = () => { selectedTopic = selectedTopic === topic.id ? null : topic.id; render(); };
     $('#topic-nav').append(button);
   });
   const container = $('#topics');
@@ -290,7 +289,6 @@ $('#topic-form').onsubmit = event => {
 };
 document.querySelectorAll('[data-filter]').forEach(button => { button.onclick = () => { filter = button.dataset.filter; updateFilters(); render(); }; });
 $('#search').oninput = event => { query = event.target.value; render(); };
-$('#all-topics').onclick = () => { selectedTopic = null; render(); };
 document.addEventListener('keydown', event => {
   if (event.key === '/' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName) && !document.querySelector('dialog[open]')) { event.preventDefault(); $('#search').focus(); }
 });
