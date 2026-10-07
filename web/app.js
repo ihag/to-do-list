@@ -143,7 +143,7 @@ function render() {
       const editTodo = element('button', 'todo-edit', '수정');
       editTodo.setAttribute('aria-label', todo.title + ' 수정');
       editTodo.onclick = () => {
-        const input = element('input'); input.type = 'text'; input.value = todo.title; input.maxLength = 200; input.className = 'todo-label'; input.setAttribute('aria-label', '할 일 이름 수정');
+        const input = element('input'); input.type = 'text'; input.value = todo.title; input.maxLength = 200; input.className = 'todo-label todo-edit-input'; input.setAttribute('aria-label', '할 일 이름 수정');
         label.replaceWith(input); editTodo.textContent = '저장'; input.focus();
         const finish = () => {
           const title = input.value.trim();

@@ -46,7 +46,7 @@ const assert = require('node:assert/strict');
   assert.equal(await evaluate(`document.querySelector('.topic:last-child .due-badge').title`),'2026-10-10');
   await evaluate(`document.querySelector('.topic:last-child input[type=checkbox]').click()`);
   assert.equal(await evaluate(`getComputedStyle(document.querySelector('.topic:last-child .todo-label')).textDecorationLine`), 'line-through');
-  await evaluate(`document.querySelector('.topic:last-child .todo-edit').click(); const edit=document.querySelector('.topic:last-child .todo-row input[type=text]'); edit.value='수정한 할 일'; edit.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))`);
+  await evaluate(`document.querySelector('.topic:last-child .todo-edit').click(); const edit=document.querySelector('.topic:last-child .todo-row input[type=text]');const style=getComputedStyle(edit);if(style.outlineStyle!=='none'||style.borderTopStyle!=='solid'||style.borderTopColor!=='rgb(40, 120, 239)'||style.boxShadow!=='none')throw new Error('Edit input must have one blue border'); edit.value='수정한 할 일'; edit.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))`);
   assert.equal(await evaluate(`document.querySelector('.topic:last-child .todo-label').textContent`), '수정한 할 일');
   await evaluate(`document.querySelector('.topic:last-child .edit-topic').click(); [...document.querySelectorAll('.emoji-choice')].find(button=>button.textContent==='🎯').click();document.querySelector('#topic-form').requestSubmit()`);
   assert.equal(await evaluate(`document.querySelector('.topic:last-child .topic-icon').textContent`), '🎯');
