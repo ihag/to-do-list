@@ -2,7 +2,7 @@ import AppKit
 import WebKit
 
 final class EmojiQA: NSObject, WKNavigationDelegate {
-    let sizes = [(320,568),(360,800),(375,667),(390,844),(393,852),(412,915),(430,932),(568,320),(844,390),(768,1024),(1440,1100)]
+    let sizes = [(320,568),(360,800),(375,667),(390,844),(393,852),(412,915),(430,932),(568,320),(844,390),(721,900),(768,1024),(900,700),(1050,800),(1440,1100),(1920,1080)]
     let web: WKWebView
     let window: NSWindow
     let url: URL
@@ -27,12 +27,13 @@ final class EmojiQA: NSObject, WKNavigationDelegate {
     }
     func fail(_ message:String) { print("WebKit QA failed: " + message); exit(1) }
     func testNext() {
-        if index == sizes.count { print("WebKit QA passed: all 16 emoji images centered at 11 viewport sizes, including narrow screens and landscape. URL: " + url.absoluteString); exit(0) }
+        if index == sizes.count { print("WebKit QA passed: all 16 emoji images centered at 15 viewport sizes, including narrow screens and landscape. URL: " + url.absoluteString); exit(0) }
         let size = sizes[index]
         window.setContentSize(NSSize(width:size.0,height:size.1))
         web.frame = NSRect(x:0,y:0,width:size.0,height:size.1)
         let script = """
         await new Promise(resolve=>setTimeout(resolve,60));
+        document.querySelector('#overall-progress').style.transition='none';
         state = TaskStore.initialState();state.topics[0].name='모바일에서 긴 주제 제목과 이모티콘 정렬 확인';render();
         if(document.documentElement.scrollWidth>innerWidth) throw new Error('Page overflow');
         const cards=[...document.querySelectorAll('.stats>div')].map(card=>card.getBoundingClientRect());
@@ -40,6 +41,14 @@ final class EmojiQA: NSObject, WKNavigationDelegate {
         if(parseFloat(getComputedStyle(document.querySelector('#today')).fontSize)<20)throw new Error('Date too small');
         const track=document.querySelector('.progress-track'),fill=document.querySelector('#overall-progress');
         if(track.getAttribute('aria-valuenow')!=='20'||Math.abs(fill.getBoundingClientRect().width/track.getBoundingClientRect().width-.2)>.02)throw new Error('Progress mismatch');
+        for(const message of ['이 브라우저에 저장됨','모든 기기에 동기화됨','서버 미저장 · 이 기기에 보관됨']){
+          document.querySelector('#save-status').textContent=message;
+          document.querySelector('#sync-now').hidden=message==='이 브라우저에 저장됨';
+          document.querySelector('#account-button').textContent=message==='이 브라우저에 저장됨'?'로그인':'나의 계정';
+          const header=document.querySelector('.topbar'),tools=document.querySelector('.account-tools'),status=document.querySelector('#save-status');
+          const h=header.getBoundingClientRect(),t=tools.getBoundingClientRect(),s=status.getBoundingClientRect(),edge=h.right-parseFloat(getComputedStyle(header).paddingRight);
+          if(Math.abs(t.right-edge)>1||s.left<t.left-1||s.right>t.right+1||(innerWidth<=720&&Math.abs(s.right-edge)>1)||document.documentElement.scrollWidth>innerWidth)throw new Error('Status alignment: '+message);
+        }
         async function measure(button){
           const image=button.querySelector('.emoji-image');if(!image)throw new Error('No image');await image.decode();
           const b=button.getBoundingClientRect(),g=image.getBoundingClientRect();

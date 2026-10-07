@@ -76,7 +76,7 @@ const assert = require('node:assert/strict');
   let screenshot = await call('Page.captureScreenshot', {format:'png', captureBeyondViewport:true});
   fs.writeFileSync('artifacts/taskflow-mobile.png', Buffer.from(screenshot.data,'base64'));
   await evaluate(`localStorage.clear();location.reload()`); await new Promise(resolve => setTimeout(resolve, 200)); await ready();
-  for (const [width,height] of [[320,568],[360,800],[375,667],[390,844],[393,852],[412,915],[430,932],[568,320],[844,390],[768,1024],[1440,1100]]) {
+  for (const [width,height] of [[320,568],[360,800],[375,667],[390,844],[393,852],[412,915],[430,932],[568,320],[844,390],[721,900],[768,1024],[900,700],[1050,800],[1440,1100],[1920,1080]]) {
     await call('Emulation.setDeviceMetricsOverride', {width,height,deviceScaleFactor:1,mobile:width<900});
     assert.equal(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, `overflow at ${width}`);
     assert.equal(await evaluate(`getComputedStyle(document.querySelector('.stats')).gridTemplateColumns.split(' ').length`), 4);
@@ -84,11 +84,17 @@ const assert = require('node:assert/strict');
     assert.equal(await evaluate(`Number.parseFloat(getComputedStyle(document.querySelector('#today')).fontSize) >= 20`), true);
     assert.equal(await evaluate(`(()=>{const track=document.querySelector('.progress-track'),fill=document.querySelector('#overall-progress');return Math.abs(fill.getBoundingClientRect().width/track.getBoundingClientRect().width-.2)<.02})()`), true);
     assert.equal(await evaluate(`(()=>{return [...document.querySelectorAll('.stats>div')].every(card=>{const label=card.firstElementChild.getBoundingClientRect(),box=card.getBoundingClientRect();return label.right<=box.right-4&&label.left>=box.left})})()`), true, `stat label overflow at ${width}`);
+    for (const message of ['이 브라우저에 저장됨', '모든 기기에 동기화됨', '서버 미저장 · 이 기기에 보관됨']) {
+      await evaluate(`document.querySelector('#save-status').textContent=${JSON.stringify(message)};document.querySelector('#sync-now').hidden=${message==='이 브라우저에 저장됨'};document.querySelector('#account-button').textContent=${JSON.stringify(message==='이 브라우저에 저장됨'?'로그인':'나의 계정')}`);
+      assert.equal(await evaluate(`(()=>{const header=document.querySelector('.topbar'),tools=document.querySelector('.account-tools'),status=document.querySelector('#save-status');const h=header.getBoundingClientRect(),t=tools.getBoundingClientRect(),s=status.getBoundingClientRect(),edge=h.right-parseFloat(getComputedStyle(header).paddingRight);return Math.abs(t.right-edge)<1&&s.left>=t.left-1&&s.right<=t.right+1&&(innerWidth>720||Math.abs(s.right-edge)<1)&&document.documentElement.scrollWidth<=innerWidth})()`),true,`status alignment at ${width}: ${message}`);
+    }
+    await evaluate(`document.querySelector('#save-status').textContent='모든 기기에 동기화됨';document.querySelector('#sync-now').hidden=false;document.querySelector('#account-button').textContent='나의 계정'`);
     if ([320,390].includes(width)) {
       const preview = await call('Page.captureScreenshot', {format:'png',captureBeyondViewport:true});
       fs.writeFileSync(`artifacts/taskflow-stats-${width}.png`,Buffer.from(preview.data,'base64'));
     }
   }
+  await evaluate(`document.querySelector('#save-status').textContent='이 브라우저에 저장됨';document.querySelector('#sync-now').hidden=true;document.querySelector('#account-button').textContent='로그인'`);
   await evaluate(`var originalLayoutState=JSON.parse(JSON.stringify(state));state.topics.forEach(topic=>topic.todos.forEach(todo=>todo.done=true));render()`);
   assert.equal(await evaluate(`document.querySelector('[role=progressbar]').getAttribute('aria-valuenow')`), '100');
   await evaluate(`state={version:1,topics:[]};render()`);
@@ -101,5 +107,5 @@ const assert = require('node:assert/strict');
   fs.writeFileSync('artifacts/taskflow-desktop.png',Buffer.from(screenshot.data,'base64'));
   assert.equal(errors.length, 0, JSON.stringify(errors));
   socket.close();
-  console.log('Chrome QA passed: four stats in one row, two-column topics, banner removal, emoji selection and persistence, deletion confirmation/cancellation and persistence, creation, escaping, completion, editing, filters, search, mobile layout, zero runtime errors.');
+  console.log('Chrome QA passed: right-aligned guest/synced/offline header at 15 viewport sizes, four stats in one row, two-column topics, banner removal, emoji selection and persistence, deletion confirmation/cancellation and persistence, creation, escaping, completion, editing, filters, search, mobile layout, zero runtime errors.');
 })().catch(error => { console.error(error);process.exit(1); });
